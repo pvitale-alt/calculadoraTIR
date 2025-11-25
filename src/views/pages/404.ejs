@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= typeof title !== 'undefined' ? title : 'Página no encontrada' %> - Calculadora TIR</title>
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+    <%- include('../partials/header') %>
+    
+    <div class="app-container">
+        <main class="main-content">
+            <div class="content-area">
+                <div class="empty-state">
+                    <div class="empty-state-icon">404</div>
+                    <div class="empty-state-text">Página no encontrada</div>
+                    <div class="empty-state-subtext">La página que buscas no existe.</div>
+                    <a href="/calculadora" class="btn btn-primary" style="margin-top: 24px;">Volver al inicio</a>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/main.js"></script>
+</body>
+</html>
+

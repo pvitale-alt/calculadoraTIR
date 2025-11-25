@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Calculadora TIR</title>
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+    <%- include('../partials/header') %>
+    
+    <div class="app-container">
+        <main class="main-content">
+            <div class="content-area">
+                <div style="display: flex; flex-direction: column; gap: 24px; margin-bottom: 24px;">
+                    <h1 class="page-title" style="margin: 0;">Valores CER</h1>
+                    
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 12px;">
+                        <!-- Buscador por intervalos -->
+                        <div style="display: flex; gap: 12px; align-items: center; padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid var(--border-color);">
+                            <label style="font-size: 14px; color: var(--text-secondary);">Desde:</label>
+                            <div class="date-input-wrapper" style="width: 120px;">
+                                <input type="text" class="input date-input" id="buscarDesdeCER" placeholder="DD-MM-AAAA" maxlength="10" />
+                                <button type="button" class="date-picker-icon-btn" onclick="abrirDatePicker('buscarDesdeCER')" title="Seleccionar fecha">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                                    </svg>
+                                </button>
+                                <div id="datePickerBuscarDesdeCER" class="date-picker-popup" style="display: none;"></div>
+                            </div>
+                            <label style="font-size: 14px; color: var(--text-secondary);">Hasta:</label>
+                            <div class="date-input-wrapper" style="width: 120px;">
+                                <input type="text" class="input date-input" id="buscarHastaCER" placeholder="DD-MM-AAAA" maxlength="10" />
+                                <button type="button" class="date-picker-icon-btn" onclick="abrirDatePicker('buscarHastaCER')" title="Seleccionar fecha">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                                    </svg>
+                                </button>
+                                <div id="datePickerBuscarHastaCER" class="date-picker-popup" style="display: none;"></div>
+                            </div>
+                            <a href="#" class="btn" onclick="event.preventDefault(); filtrarCERPorIntervalo();">Buscar</a>
+                            <button type="button" onclick="limpiarFiltroCER()" title="Limpiar filtro" style="background: none; border: none; cursor: pointer; padding: 4px; border-radius: 50%; transition: background 0.2s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='#e8e8e8'" onmouseout="this.style.background='transparent'">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="color: #5f6368;">
+                                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <button class="btn btn-primary" onclick="abrirModalIntervalosCER()" id="btnCargarCER" style="min-width: 150px;">Consultar API</button>
+                    </div>
+                </div>
+                
+                <!-- Modal para intervalos -->
+                <div id="modalIntervalosCER" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+                    <div class="card" style="max-width: 500px; width: 90%; position: relative;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color);">
+                            <h2 style="font-size: 20px; font-weight: 500; margin: 0;">Seleccionar Intervalo de Fechas</h2>
+                            <button onclick="cerrarModalIntervalosCER()" style="background: none; border: none; cursor: pointer; padding: 8px; border-radius: 50%; transition: background 0.2s;" onmouseover="this.style.background='#f1f3f4'" onmouseout="this.style.background='transparent'">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 16px;">
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <label style="font-size: 14px; color: var(--text-secondary); min-width: 60px;">Desde:</label>
+                                <div class="date-input-wrapper" style="flex: 1;">
+                                    <input type="text" class="input date-input" id="fechaDesdeCER" placeholder="DD-MM-AAAA" maxlength="10" />
+                                    <button type="button" class="date-picker-icon-btn" onclick="abrirDatePicker('fechaDesdeCER')" title="Seleccionar fecha">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                                        </svg>
+                                    </button>
+                                    <div id="datePickerDesdeCER" class="date-picker-popup" style="display: none;"></div>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <label style="font-size: 14px; color: var(--text-secondary); min-width: 60px;">Hasta:</label>
+                                <div class="date-input-wrapper" style="flex: 1;">
+                                    <input type="text" class="input date-input" id="fechaHastaCER" placeholder="DD-MM-AAAA" maxlength="10" />
+                                    <button type="button" class="date-picker-icon-btn" onclick="abrirDatePicker('fechaHastaCER')" title="Seleccionar fecha">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                                        </svg>
+                                    </button>
+                                    <div id="datePickerHastaCER" class="date-picker-popup" style="display: none;"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+                            <button class="btn" onclick="cerrarModalIntervalosCER()" style="min-width: 100px;">Cancelar</button>
+                            <button class="btn btn-primary" onclick="confirmarCargarCER()" id="btnConfirmarCargarCER" style="min-width: 100px;">Cargar</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="cerTableContainer" style="display: none; margin: 0 auto; max-width: 50%;">
+                    <!-- Botón Exportar CSV -->
+                    <div id="btnExportarCSVCERContainer" style="display: none; margin-bottom: 16px; text-align: right;">
+                        <button class="btn btn-primary" onclick="abrirModalExportarCSV('cer')" style="display: inline-flex; align-items: center; gap: 8px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                            </svg>
+                            <span>Exportar CSV</span>
+                        </button>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table class="cashflow-table" id="cerTable">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Valor CER</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cerTableBody">
+                                <% 
+                                function formatearFechaEJS(fecha) {
+                                    if (!fecha) return '';
+                                    if (fecha instanceof Date) {
+                                        const day = String(fecha.getDate()).padStart(2, '0');
+                                        const month = String(fecha.getMonth() + 1).padStart(2, '0');
+                                        const year = fecha.getFullYear();
+                                        return `${day}-${month}-${year}`;
+                                    }
+                                    if (typeof fecha === 'string' && /^\d{4}-\d{2}-\d{2}/.test(fecha)) {
+                                        const partes = fecha.split('T')[0].split('-');
+                                        return `${partes[2]}-${partes[1]}-${partes[0]}`;
+                                    }
+                                    return fecha;
+                                }
+                                %>
+                                <% if (datos && datos.length > 0) { %>
+                                    <% datos.forEach(item => { %>
+                                        <tr>
+                                            <td><%= formatearFechaEJS(item.fecha) %></td>
+                                            <td><%= typeof item.valor === 'number' ? item.valor.toFixed(4) : item.valor %></td>
+                                        </tr>
+                                    <% }); %>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Controles de paginación -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                        <div style="font-size: 14px; color: var(--text-secondary);">
+                            <span id="cerPaginationInfo">Mostrando 0 - 0 de 0 registros</span>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="btn" onclick="cambiarPaginaCER(1)" id="btnAnteriorCER" style="opacity: 0.5; cursor: not-allowed;" disabled>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                                </svg>
+                                <span>Anterior</span>
+                            </button>
+                            <div style="font-size: 14px; color: var(--text-primary); padding: 0 16px;">
+                                <span id="cerPageInfo">Página 1 de 1</span>
+                            </div>
+                            <button class="btn" onclick="cambiarPaginaCER(2)" id="btnSiguienteCER" style="opacity: 0.5; cursor: not-allowed;" disabled>
+                                <span>Siguiente</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <script>
+                    window.cerPaginaActual = <%= pagina || 1 %>;
+                    window.cerTotalPaginas = <%= totalPaginas || 1 %>;
+                    window.cerTotal = <%= total || 0 %>;
+                    window.cerPorPagina = <%= porPagina || 50 %>;
+                </script>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal para exportar CSV -->
+    <div id="modalExportarCSV" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+        <div class="card" style="max-width: 600px; width: 90%; position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color);">
+                <h2 style="font-size: 20px; font-weight: 500; margin: 0;">Exportar CSV</h2>
+                <button onclick="cerrarModalExportarCSV()" style="background: none; border: none; cursor: pointer; padding: 8px; border-radius: 50%; transition: background 0.2s;" onmouseover="this.style.background='#f1f3f4'" onmouseout="this.style.background='transparent'">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                </button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <label style="font-size: 14px; font-weight: 500; color: var(--text-primary); margin-bottom: 8px; display: block;">Formato de exportación:</label>
+                    <input type="text" class="input" id="formatoExportarCSV" value="FECHA;VALOR" placeholder="Ej: 1;BCRA;CER;FECHA;VALOR" style="width: 100%; font-family: monospace;" />
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+                        <p>Use <strong>FECHA</strong> para la fecha (DD/MM/AAAA) y <strong>VALOR</strong> para el valor (con coma como separador decimal).</p>
+                        <p>Ejemplo: <code>1;BCRA;CER;FECHA;VALOR</code> generará: <code>1;BCRA;CER;01/01/2025;543,11</code></p>
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+                <button class="btn" onclick="cerrarModalExportarCSV()" style="min-width: 100px;">Cancelar</button>
+                <button class="btn btn-primary" onclick="exportarCSV()" id="btnExportarCSV" style="min-width: 100px;">Exportar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/utils/dateUtils.js"></script>
+    <script src="/js/utils/formUtils.js"></script>
+    <script src="/js/cer.js"></script>
+</body>
+</html>

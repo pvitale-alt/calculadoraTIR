@@ -1,0 +1,29 @@
+{
+  "name": "calculadora2",
+  "version": "1.0.0",
+  "description": "Calculadora de TIR para bonos - Versión 2.0 (Refactorizada)",
+  "main": "src/app.js",
+  "engines": {
+    "node": ">=18.x"
+  },
+  "scripts": {
+    "dev": "nodemon src/app.js",
+    "start": "node src/app.js",
+    "build": "echo 'Build completado'",
+    "vercel-build": "echo 'Vercel build completado'"
+  },
+  "keywords": ["calculadora", "tir", "bonos", "cer", "tamar", "badlar", "finanzas"],
+  "author": "Mercap Software",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "dotenv": "^16.3.1",
+    "ejs": "^3.1.9",
+    "pg": "^8.11.3",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
+

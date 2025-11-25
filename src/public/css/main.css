@@ -1,0 +1,558 @@
+/* Importar Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap');
+
+/* Variables CSS */
+:root {
+    --header-height: 56px;
+    --primary-color: #316ba1;
+    --hover-bg: #f1f3f4;
+    --border-color: #dadce0;
+    --text-primary: #202124;
+    --text-secondary: #5f6368;
+    --bg-white: #ffffff;
+    --shadow: 0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
+}
+
+/* Reset y estilos base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: #f8f9fa;
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    padding-top: var(--header-height);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Google Sans', 'Roboto', sans-serif;
+    font-weight: 500;
+    color: var(--text-primary);
+    letter-spacing: 0;
+}
+
+h1 {
+    font-size: 32px;
+    font-weight: 500;
+    line-height: 40px;
+}
+
+h2 {
+    font-size: 24px;
+    font-weight: 500;
+    line-height: 32px;
+}
+
+h3 {
+    font-size: 20px;
+    font-weight: 500;
+    line-height: 28px;
+}
+
+.page-title {
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 24px;
+    letter-spacing: 0;
+}
+
+/* Header fijo superior */
+.top-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--header-height);
+    background: white;
+    border-bottom: 1px solid var(--border-color);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Tabs de navegación en header */
+.header-tabs {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.header-tabs::-webkit-scrollbar {
+    height: 4px;
+}
+
+.header-tabs::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.header-tabs::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 2px;
+}
+
+.header-tab {
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    height: 40px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: 'Google Sans', 'Roboto', sans-serif;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.header-tab:hover {
+    color: var(--primary-color);
+    background: var(--hover-bg);
+}
+
+.header-tab.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    font-weight: 600;
+}
+
+/* Layout principal */
+.app-container {
+    display: block;
+    height: calc(100vh - var(--header-height));
+    overflow: hidden;
+}
+
+.main-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.content-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Cards */
+.card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 24px;
+}
+
+/* Botones */
+.btn {
+    padding: 10px 24px;
+    border-radius: 24px;
+    border: 1px solid #dadce0;
+    background: white;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: 'Google Sans', 'Roboto', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    letter-spacing: 0.25px;
+    height: 40px;
+    min-width: 100px;
+    text-decoration: none;
+}
+
+.btn:hover {
+    background: #f1f3f4;
+    border-color: #bdc1c6;
+    box-shadow: 0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    font-weight: 600;
+    box-shadow: 0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
+}
+
+.btn-primary:hover {
+    background: #0A4887;
+    border-color: #0A4887;
+    box-shadow: 0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15);
+}
+
+.btn-primary:active {
+    background: #08396C;
+}
+
+/* Inputs y formularios */
+.input {
+    width: 100%;
+    padding: 10px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: 'Google Sans', 'Roboto', sans-serif;
+    transition: all 0.2s;
+}
+
+.input-sm {
+    padding: 8px 12px;
+    font-size: 13px;
+    border-radius: 6px;
+    height: 36px;
+    line-height: 1.5;
+}
+
+/* Asegurar que los selects tengan la misma altura que los inputs */
+select.input,
+select.input-sm {
+    height: 36px;
+    line-height: 1.5;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235f6368' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(49, 107, 161, 0.1);
+}
+
+.input-sm:focus {
+    box-shadow: 0 0 0 2px rgba(49, 107, 161, 0.1);
+}
+
+.form-group {
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+.form-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+/* Date Input Wrapper - Icono dentro del input */
+.date-input-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+.date-input-wrapper .date-input {
+    padding-right: 40px;
+}
+
+.date-picker-icon-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    z-index: 1;
+}
+
+.date-picker-icon-btn:hover {
+    background: var(--hover-bg);
+    color: var(--primary-color);
+}
+
+.date-picker-icon-btn:active {
+    transform: translateY(-50%) scale(0.95);
+}
+
+.date-picker-icon-btn svg {
+    width: 18px;
+    height: 18px;
+    pointer-events: none;
+}
+
+/* Date Picker Popup */
+.date-picker-popup {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    min-width: 280px;
+    padding: 12px;
+}
+
+.date-picker-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.date-picker-nav-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 4px;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.date-picker-nav-btn:hover {
+    background: var(--hover-bg);
+    color: var(--primary-color);
+}
+
+.date-picker-month-year {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    text-align: center;
+    flex: 1;
+}
+
+.date-picker-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.date-picker-weekday {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    padding: 4px;
+}
+
+.date-picker-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.date-picker-day {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--text-primary);
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.date-picker-day:hover {
+    background: var(--hover-bg);
+}
+
+.date-picker-day.today {
+    background: #e8f0fe;
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.date-picker-day.selected {
+    background: var(--primary-color);
+    color: white;
+    font-weight: 600;
+}
+
+.date-picker-day.other-month {
+    color: var(--text-secondary);
+    opacity: 0.4;
+}
+
+.date-picker-years-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.date-picker-year {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--text-primary);
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.date-picker-year:hover {
+    background: var(--hover-bg);
+}
+
+.date-picker-year.today {
+    background: #e8f0fe;
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.date-picker-year.selected {
+    background: var(--primary-color);
+    color: white;
+    font-weight: 600;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+}
+
+.empty-state-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+}
+
+.empty-state-text {
+    font-size: 18px;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.empty-state-subtext {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+/* Tablas de variables (CER, TAMAR, BADLAR) y feriados */
+.cashflow-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.cashflow-table th {
+    background: #f1f3f4;
+    padding: 8px 4px;
+    text-align: center;
+    font-weight: 500;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+    white-space: normal;
+    line-height: 1.2;
+    font-size: 11px;
+}
+
+.cashflow-table td {
+    padding: 4px 2px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+}
+
+/* Tablas de variables (CER, TAMAR, BADLAR) y feriados - columnas autoajustadas */
+#cerTable th,
+#cerTable td,
+#tamarTable th,
+#tamarTable td,
+#badlarTable th,
+#badlarTable td,
+#feriadosTable th,
+#feriadosTable td {
+    width: auto !important;
+    max-width: none !important;
+    min-width: auto !important;
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+    white-space: nowrap !important;
+}
+
+/* Primera columna (Fecha) más angosta */
+#cerTable th:first-child,
+#cerTable td:first-child,
+#tamarTable th:first-child,
+#tamarTable td:first-child,
+#badlarTable th:first-child,
+#badlarTable td:first-child,
+#feriadosTable th:first-child,
+#feriadosTable td:first-child {
+    width: 120px !important;
+    max-width: 120px !important;
+    min-width: 120px !important;
+    text-align: left !important;
+}
+
+/* Segunda columna (Valor) alineada a la derecha */
+#cerTable th:nth-child(2),
+#cerTable td:nth-child(2),
+#tamarTable th:nth-child(2),
+#tamarTable td:nth-child(2),
+#badlarTable th:nth-child(2),
+#badlarTable td:nth-child(2) {
+    text-align: right !important;
+}
+
+.cashflow-table tr:hover {
+    background: var(--hover-bg);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .content-area {
+        padding: 16px;
+    }
+    
+    .header-tabs {
+        padding: 0 8px;
+    }
+    
+    .header-tab {
+        padding: 0 12px;
+        font-size: 13px;
+    }
+}
+
