@@ -2,6 +2,11 @@
  * Funciones para guardar y cargar calculadoras desde la base de datos
  */
 
+const CALCULADORAS_CACHE_MS = 30000;
+let calculadorasListaCache = null;
+let calculadorasListaCacheTime = 0;
+const calculadorasDetalleCache = new Map();
+
 /**
  * Recopilar todos los datos de la calculadora del formulario
  */
@@ -166,6 +171,8 @@ async function confirmarGuardarCalculadora() {
         if (result.success) {
             cerrarModalGuardarCalculadora();
             showSuccess('Calculadora guardada exitosamente');
+            calculadorasListaCache = null;
+            calculadorasDetalleCache.clear();
         } else {
             showError(result.error || 'Error al guardar calculadora');
         }
@@ -181,6 +188,12 @@ async function confirmarGuardarCalculadora() {
  */
 async function cargarCalculadora() {
     try {
+        const ahora = Date.now();
+        if (calculadorasListaCache && (ahora - calculadorasListaCacheTime) < CALCULADORAS_CACHE_MS) {
+            mostrarModalCalculadoras(calculadorasListaCache);
+            return;
+        }
+        
         // Obtener lista de calculadoras
         const response = await fetch('/api/calculadoras');
 
@@ -199,6 +212,9 @@ async function cargarCalculadora() {
             showError('No hay calculadoras guardadas');
             return;
         }
+        
+        calculadorasListaCache = result.calculadoras;
+        calculadorasListaCacheTime = Date.now();
 
         // Mostrar modal con lista de calculadoras
         mostrarModalCalculadoras(result.calculadoras);
@@ -288,6 +304,15 @@ function cerrarModalCalculadoras() {
  */
 async function seleccionarCalculadora(id) {
     try {
+        const cache = calculadorasDetalleCache.get(id);
+        const ahora = Date.now();
+        if (cache && (ahora - cache.time) < CALCULADORAS_CACHE_MS) {
+            aplicarCalculadoraEnFormulario(cache.data);
+            cerrarModalCalculadoras();
+            showSuccess('Calculadora cargada exitosamente');
+            return;
+        }
+        
         const response = await fetch(`/api/calculadoras/${id}`);
         const result = await response.json();
 
@@ -297,69 +322,50 @@ async function seleccionarCalculadora(id) {
         }
 
         const calculadora = result.calculadora;
-
-        // Llenar formulario con los datos
-        if (calculadora.fechaCompra) {
-            document.getElementById('fechaCompra').value = calculadora.fechaCompra;
-        }
-        if (calculadora.precioCompra) {
-            document.getElementById('precioCompra').value = calculadora.precioCompra;
-        }
-        if (calculadora.cantidadPartida) {
-            document.getElementById('cantidadPartida').value = calculadora.cantidadPartida;
-        }
-        if (calculadora.ticker) {
-            document.getElementById('ticker').value = calculadora.ticker;
-        }
-        if (calculadora.tasa) {
-            document.getElementById('tasa').value = calculadora.tasa;
-        }
-        if (calculadora.formula) {
-            document.getElementById('formula').value = calculadora.formula;
-        }
-        if (calculadora.rentaTNA) {
-            document.getElementById('rentaTNA').value = calculadora.rentaTNA;
-        }
-        if (calculadora.spread) {
-            document.getElementById('spread').value = calculadora.spread;
-        }
-        if (calculadora.tipoInteresDias !== null && calculadora.tipoInteresDias !== undefined) {
-            document.getElementById('tipoInteresDias').value = calculadora.tipoInteresDias;
-        }
-        if (calculadora.fechaEmision) {
-            document.getElementById('fechaEmision').value = calculadora.fechaEmision;
-        }
-        if (calculadora.fechaPrimeraRenta) {
-            document.getElementById('fechaPrimeraRenta').value = calculadora.fechaPrimeraRenta;
-        }
-        if (calculadora.diasRestarFechaFinDev !== null && calculadora.diasRestarFechaFinDev !== undefined) {
-            document.getElementById('diasRestarFechaFinDev').value = calculadora.diasRestarFechaFinDev;
-        }
-        if (calculadora.fechaAmortizacion) {
-            document.getElementById('fechaAmortizacion').value = calculadora.fechaAmortizacion;
-        }
-        if (calculadora.porcentajeAmortizacion) {
-            document.getElementById('porcentajeAmortizacion').value = calculadora.porcentajeAmortizacion;
-        }
-        if (calculadora.periodicidad) {
-            document.getElementById('periodicidad').value = calculadora.periodicidad;
-        }
-        if (calculadora.intervaloInicio !== null && calculadora.intervaloInicio !== undefined) {
-            document.getElementById('intervaloInicio').value = calculadora.intervaloInicio;
-        }
-        if (calculadora.intervaloFin !== null && calculadora.intervaloFin !== undefined) {
-            document.getElementById('intervaloFin').value = calculadora.intervaloFin;
-        }
-        if (calculadora.ajusteCER !== null && calculadora.ajusteCER !== undefined) {
-            document.getElementById('ajusteCER').checked = calculadora.ajusteCER;
-        }
-
+        calculadorasDetalleCache.set(id, { data: calculadora, time: Date.now() });
+        
+        aplicarCalculadoraEnFormulario(calculadora);
         cerrarModalCalculadoras();
         showSuccess('Calculadora cargada exitosamente');
 
     } catch (error) {
         console.error('Error al seleccionar calculadora:', error);
         showError('Error al cargar calculadora: ' + error.message);
+    }
+}
+
+function aplicarCalculadoraEnFormulario(calculadora = {}) {
+    const asignarValor = (id, valor) => {
+        const elemento = document.getElementById(id);
+        if (!elemento) return;
+        if (elemento.type === 'checkbox') {
+            elemento.checked = Boolean(valor);
+        } else {
+            elemento.value = valor ?? '';
+        }
+    };
+    
+    asignarValor('fechaCompra', calculadora.fechaCompra);
+    asignarValor('precioCompra', calculadora.precioCompra);
+    asignarValor('cantidadPartida', calculadora.cantidadPartida);
+    asignarValor('ticker', calculadora.ticker);
+    asignarValor('tasa', calculadora.tasa);
+    asignarValor('formula', calculadora.formula);
+    asignarValor('rentaTNA', calculadora.rentaTNA);
+    asignarValor('spread', calculadora.spread);
+    asignarValor('tipoInteresDias', calculadora.tipoInteresDias);
+    asignarValor('fechaEmision', calculadora.fechaEmision);
+    asignarValor('fechaPrimeraRenta', calculadora.fechaPrimeraRenta);
+    asignarValor('diasRestarFechaFinDev', calculadora.diasRestarFechaFinDev);
+    asignarValor('fechaAmortizacion', calculadora.fechaAmortizacion);
+    asignarValor('porcentajeAmortizacion', calculadora.porcentajeAmortizacion);
+    asignarValor('periodicidad', calculadora.periodicidad);
+    asignarValor('intervaloInicio', calculadora.intervaloInicio);
+    asignarValor('intervaloFin', calculadora.intervaloFin);
+    
+    const ajusteCerInput = document.getElementById('ajusteCER');
+    if (ajusteCerInput) {
+        ajusteCerInput.checked = Boolean(calculadora.ajusteCER);
     }
 }
 
@@ -524,6 +530,44 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         fechaCompraInput.addEventListener('change', manejarCambioCompra);
         fechaCompraInput.addEventListener('blur', manejarCambioCompra);
+    }
+    
+    const reaplicarValoresFinancierosCupones = () => {
+        if (!window.cuponesModule || !window.cuponesModule.getCuponesData) {
+            return;
+        }
+        const cupones = window.cuponesModule.getCuponesData();
+        if (!cupones || cupones.length === 0) {
+            return;
+        }
+        if (window.cuponesCalculos && window.cuponesCalculos.aplicarValoresFinancieros) {
+            window.cuponesCalculos.aplicarValoresFinancieros(cupones, {
+                rentaTNA: document.getElementById('rentaTNA')?.value,
+                porcentajeAmortizacion: document.getElementById('porcentajeAmortizacion')?.value,
+                forceRender: true
+            });
+        }
+    };
+    
+    const rentaTNAInput = document.getElementById('rentaTNA');
+    const porcentajeAmortizacionInput = document.getElementById('porcentajeAmortizacion');
+    let timeoutValoresFinancieros = null;
+    
+    const programarActualizacionValoresFinancieros = () => {
+        clearTimeout(timeoutValoresFinancieros);
+        timeoutValoresFinancieros = setTimeout(reaplicarValoresFinancierosCupones, 400);
+    };
+    
+    if (rentaTNAInput) {
+        rentaTNAInput.addEventListener('change', reaplicarValoresFinancierosCupones);
+        rentaTNAInput.addEventListener('blur', reaplicarValoresFinancierosCupones);
+        rentaTNAInput.addEventListener('input', programarActualizacionValoresFinancieros);
+    }
+    
+    if (porcentajeAmortizacionInput) {
+        porcentajeAmortizacionInput.addEventListener('change', reaplicarValoresFinancierosCupones);
+        porcentajeAmortizacionInput.addEventListener('blur', reaplicarValoresFinancierosCupones);
+        porcentajeAmortizacionInput.addEventListener('input', programarActualizacionValoresFinancieros);
     }
     
     // Listener para tipoInteresDias: recalcular todos los dayCountFactor

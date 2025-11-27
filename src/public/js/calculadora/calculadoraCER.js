@@ -253,6 +253,8 @@ async function actualizarCoeficientesCER() {
     const intervaloFinInput = document.getElementById('intervaloFin');
     const coefCEREmisionSpan = document.getElementById('coefCEREmision');
     const coefCERCompraSpan = document.getElementById('coefCERCompra');
+    const cerEmisionValorSpan = document.getElementById('valorCEREmision');
+    const cerCompraValorSpan = document.getElementById('valorCERCompra');
     
     if (!fechaValuacionInput || !intervaloFinInput || !coefCEREmisionSpan || !coefCERCompraSpan) {
         console.warn('[actualizarCoeficientesCER] Faltan elementos del DOM:', {
@@ -272,12 +274,21 @@ async function actualizarCoeficientesCER() {
     // Resetear valores
     coefCEREmisionSpan.textContent = '-';
     coefCERCompraSpan.textContent = '-';
+    if (cerEmisionValorSpan) {
+        cerEmisionValorSpan.textContent = '-';
+    }
+    if (cerCompraValorSpan) {
+        cerCompraValorSpan.textContent = '-';
+    }
     
     if (!fechaValuacionStr) {
         return;
     }
     
     try {
+        let cerEmision = null;
+        let cerCompra = null;
+        
         // Convertir fechas a Date
         const fechaValuacionDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(fechaValuacionStr));
         if (!fechaValuacionDate) {
@@ -310,20 +321,29 @@ async function actualizarCoeficientesCER() {
             
             if (fechaEmisionDate) {
                 console.log('[actualizarCoeficientesCER] Obteniendo CER para fecha emisión...');
-                const cerEmision = await obtenerCERParaFecha(fechaEmisionDate, intervaloFin);
+                cerEmision = await obtenerCERParaFecha(fechaEmisionDate, intervaloFin);
                 console.log('[actualizarCoeficientesCER] CER emisión obtenido:', cerEmision);
                 
                 if (cerEmision !== null && cerEmision !== 0) {
                     const coefEmision = cerValuacion / cerEmision;
                     console.log('[actualizarCoeficientesCER] Coeficiente calculado:', coefEmision);
-                    coefCEREmisionSpan.textContent = coefEmision.toFixed(11);
+                    coefCEREmisionSpan.textContent = coefEmision.toFixed(4);
+                    if (cerEmisionValorSpan) {
+                        cerEmisionValorSpan.textContent = cerEmision.toFixed(4);
+                    }
                 } else {
                     console.warn('[actualizarCoeficientesCER] CER emisión es null o 0:', cerEmision);
                     coefCEREmisionSpan.textContent = 'N/A';
+                    if (cerEmisionValorSpan) {
+                        cerEmisionValorSpan.textContent = 'N/A';
+                    }
                 }
             } else {
                 console.warn('[actualizarCoeficientesCER] No se pudo convertir fechaEmisionStr a Date');
                 coefCEREmisionSpan.textContent = 'N/A';
+                if (cerEmisionValorSpan) {
+                    cerEmisionValorSpan.textContent = 'N/A';
+                }
             }
         } else {
             console.warn('[actualizarCoeficientesCER] fechaEmisionStr no válida:', {
@@ -331,24 +351,49 @@ async function actualizarCoeficientesCER() {
                 length: fechaEmisionStr?.length
             });
             coefCEREmisionSpan.textContent = 'N/A';
+            if (cerEmisionValorSpan) {
+                cerEmisionValorSpan.textContent = 'N/A';
+            }
         }
         
         // Calcular Coeficiente CER Compra
         if (fechaCompraStr && fechaCompraStr.length === 10) {
             const fechaCompraDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(fechaCompraStr));
             if (fechaCompraDate) {
-                const cerCompra = await obtenerCERParaFecha(fechaCompraDate, intervaloFin);
+                cerCompra = await obtenerCERParaFecha(fechaCompraDate, intervaloFin);
                 if (cerCompra !== null && cerCompra !== 0) {
                     const coefCompra = cerValuacion / cerCompra;
-                    coefCERCompraSpan.textContent = coefCompra.toFixed(11);
+                    coefCERCompraSpan.textContent = coefCompra.toFixed(4);
+                    if (cerCompraValorSpan) {
+                        cerCompraValorSpan.textContent = cerCompra.toFixed(4);
+                    }
                 } else {
                     coefCERCompraSpan.textContent = 'N/A';
+                    if (cerCompraValorSpan) {
+                        cerCompraValorSpan.textContent = 'N/A';
+                    }
                 }
             } else {
                 coefCERCompraSpan.textContent = 'N/A';
+                if (cerCompraValorSpan) {
+                    cerCompraValorSpan.textContent = 'N/A';
+                }
             }
         } else {
             coefCERCompraSpan.textContent = 'N/A';
+            if (cerCompraValorSpan) {
+                cerCompraValorSpan.textContent = 'N/A';
+            }
+        }
+        
+        window.cerValoresReferencia = {
+            cerValuacion,
+            cerEmision,
+            cerCompra
+        };
+        
+        if (window.cuponesCalculos && window.cuponesCalculos.recalcularValoresDerivados && window.cuponesModule && window.cuponesModule.getCuponesData) {
+            window.cuponesCalculos.recalcularValoresDerivados(window.cuponesModule.getCuponesData());
         }
     } catch (error) {
         console.error('Error al calcular coeficientes CER:', error);
@@ -390,19 +435,36 @@ async function refrescarTablaCupones() {
     }
     
     // Obtener feriados y valores CER desde cache o cargar desde BD
-    const fechaDesde = formatearFechaInput(fechaValuacionDate);
+    // Necesitamos cubrir tanto offsets negativos como positivos de los intervalos
+    const menorOffset = Math.min(0, intervaloInicio, intervaloFin);
+    const mayorOffset = Math.max(0, intervaloInicio, intervaloFin);
+    
+    const fechaDesdeDate = new Date(fechaValuacionDate);
+    fechaDesdeDate.setDate(fechaDesdeDate.getDate() + menorOffset - 30); // margen extra hacia atrás
     const fechaHastaDate = new Date(fechaValuacionDate);
-    fechaHastaDate.setDate(fechaHastaDate.getDate() + Math.abs(intervaloFin) + 30);
+    fechaHastaDate.setDate(fechaHastaDate.getDate() + mayorOffset + 30); // margen extra hacia adelante
+    
+    const fechaDesde = formatearFechaInput(fechaDesdeDate);
     const fechaHasta = formatearFechaInput(fechaHastaDate);
     
     let feriados = window.cuponesDiasHabiles.obtenerFeriados(fechaDesde, fechaHasta);
-    if (!feriados || feriados.length === 0) {
-        feriados = await window.cuponesDiasHabiles.cargarFeriadosDesdeBD(fechaDesde, fechaHasta);
-    }
-    
     let valoresCER = window.cuponesCER.obtenerValoresCER(fechaDesde, fechaHasta);
-    if (!valoresCER || valoresCER.length === 0) {
-        valoresCER = await window.cuponesCER.cargarValoresCERDesdeBD(fechaDesde, fechaHasta);
+    
+    const necesitaFeriados = !feriados || feriados.length === 0;
+    const necesitaCER = !valoresCER || valoresCER.length === 0;
+    
+    if (necesitaFeriados || necesitaCER) {
+        const [feriadosCargados, valoresCERCargados] = await Promise.all([
+            necesitaFeriados ? window.cuponesDiasHabiles.cargarFeriadosDesdeBD(fechaDesde, fechaHasta) : Promise.resolve(null),
+            necesitaCER ? window.cuponesCER.cargarValoresCERDesdeBD(fechaDesde, fechaHasta) : Promise.resolve(null)
+        ]);
+        
+        if (necesitaFeriados && feriadosCargados) {
+            feriados = feriadosCargados;
+        }
+        if (necesitaCER && valoresCERCargados) {
+            valoresCER = valoresCERCargados;
+        }
     }
     
     // Si no hay datos después de intentar cargar, solo actualizar estilos
@@ -419,7 +481,7 @@ async function refrescarTablaCupones() {
     let huboCambios = false;
     let huboCambiosInversion = false;
     
-    cuponesData.forEach(cupon => {
+    for (const cupon of cuponesData) {
         // Actualizar finalIntervalo de inversión siempre cuando cambia fecha valuación
         if (cupon.id === 'inversion') {
             // Para la inversión, recalcular finalIntervalo = fechaLiquid + intervaloFin
@@ -480,7 +542,7 @@ async function refrescarTablaCupones() {
                     console.error('Error al procesar inversión:', e);
                 }
             }
-            return;
+            continue;
         }
         
         // Verificar si fechaLiquid es mayor a fechaValuacion
@@ -550,7 +612,7 @@ async function refrescarTablaCupones() {
                 console.error('Error al procesar cupón:', e);
             }
         }
-    });
+    }
     
     // Si hubo cambios (en inversión o en cupones), actualizar y re-renderizar
     if (huboCambios || huboCambiosInversion) {

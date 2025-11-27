@@ -505,6 +505,11 @@ async function autocompletarCupones() {
         }
         todasLasFilas.push(...filasCupones);
         
+        // Aplicar valores financieros (renta TNA y amortizaciones) antes de renderizar
+        if (window.cuponesCalculos && window.cuponesCalculos.aplicarValoresFinancieros) {
+            window.cuponesCalculos.aplicarValoresFinancieros(todasLasFilas);
+        }
+        
         // Actualizar datos y renderizar
         window.cuponesModule.setCuponesData(todasLasFilas);
         

@@ -539,20 +539,17 @@ select.input-sm {
 }
 
 .cupones-table tr.cupon-futuro {
-    opacity: 0.75;
-    pointer-events: none;
-    background-color: #fafafa;
+    background-color: #fff;
 }
 
 .cupones-table tr.cupon-futuro td {
-    background-color: #fafafa;
-    color: #70757a;
+    background-color: #fff;
+    color: inherit;
 }
 
 .cupones-table tr.cupon-futuro .input-table {
-    background-color: #fafafa;
-    color: #70757a;
-    cursor: not-allowed;
+    background-color: #fff;
+    color: inherit;
 }
 
 .cupones-table .input-table {
@@ -571,6 +568,13 @@ select.input-sm {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 2px rgba(49, 107, 161, 0.1);
+}
+
+.input-table.input-bloqueado {
+    background-color: #f4f6f8 !important;
+    color: #5f6368 !important;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .cupones-table .input-table.date-input {
