@@ -286,15 +286,17 @@ function renderizarCupones() {
             </td>
             <td>
                 <input type="number" class="input-table" 
+                       id="flujos_${cupon.id}"
                        value="${cupon.flujos || ''}" 
-                       step="0.0001"
-                       onchange="actualizarCupon('${cupon.id}', 'flujos', this.value)" />
+                       step="0.00000001"
+                       readonly tabindex="-1" />
             </td>
             <td>
                 <input type="number" class="input-table" 
+                       id="flujosDesc_${cupon.id}"
                        value="${cupon.flujosDesc || ''}" 
-                       step="0.0001"
-                       onchange="actualizarCupon('${cupon.id}', 'flujosDesc', this.value)" />
+                       step="0.00000001"
+                       readonly tabindex="-1" />
             </td>
             <td>
                 <button class="btn-icon" onclick="eliminarFilaCupon('${cupon.id}')" title="Eliminar cupón">

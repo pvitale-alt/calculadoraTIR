@@ -512,6 +512,10 @@ async function autocompletarCupones() {
         
         // Actualizar datos y renderizar
         window.cuponesModule.setCuponesData(todasLasFilas);
+
+        if (window.tirModule && typeof window.tirModule.resetTIR === 'function') {
+            window.tirModule.resetTIR();
+        }
         
         // Mostrar la tabla si hay datos
         const tablaContainer = document.getElementById('tablaCuponesContainer');

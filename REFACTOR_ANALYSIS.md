@@ -80,3 +80,8 @@
 - La refactorización es opcional pero recomendada para escalabilidad
 - Se puede hacer de forma incremental sin romper funcionalidad existente
 
+
+
+
+
+

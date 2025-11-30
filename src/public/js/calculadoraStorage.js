@@ -458,6 +458,15 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 console.warn('[calculadoraStorage] refrescarTablaCupones no está disponible');
             }
+            
+            // Recalcular factores de actualización y pagos actualizados después de cambiar fecha valuación
+            if (window.cuponesCalculos && window.cuponesCalculos.recalcularValoresDerivados && window.cuponesModule && window.cuponesModule.getCuponesData) {
+                const cupones = window.cuponesModule.getCuponesData();
+                if (cupones && cupones.length > 0) {
+                    window.cuponesCalculos.recalcularValoresDerivados(cupones);
+                }
+            }
+            
             if (window.actualizarVisibilidadCoeficientesCER) {
                 window.actualizarVisibilidadCoeficientesCER();
             }
@@ -526,6 +535,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (valorActual !== valorAnteriorCompra && valorActual.length === 10) {
                 valorAnteriorCompra = valorActual;
                 await window.actualizarCoeficientesCER();
+                if (window.tirModule && typeof window.tirModule.resetTIR === 'function') {
+                    window.tirModule.resetTIR();
+                }
             }
         };
         fechaCompraInput.addEventListener('change', manejarCambioCompra);
@@ -569,8 +581,30 @@ document.addEventListener('DOMContentLoaded', () => {
         porcentajeAmortizacionInput.addEventListener('blur', reaplicarValoresFinancierosCupones);
         porcentajeAmortizacionInput.addEventListener('input', programarActualizacionValoresFinancieros);
     }
+
+    const ejecutarRecalculoFlujos = () => {
+        if (!window.cuponesCalculos || typeof window.cuponesCalculos.recalcularFlujos !== 'function') {
+            return;
+        }
+        window.cuponesCalculos.recalcularFlujos(window.cuponesModule?.getCuponesData?.() || []);
+    };
+
+    let timeoutRecalculoFlujos = null;
+    const programarRecalculoFlujos = () => {
+        clearTimeout(timeoutRecalculoFlujos);
+        timeoutRecalculoFlujos = setTimeout(ejecutarRecalculoFlujos, 400);
+    };
+
+    ['precioCompra', 'cantidadPartida'].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('input', programarRecalculoFlujos);
+            input.addEventListener('change', ejecutarRecalculoFlujos);
+            input.addEventListener('blur', ejecutarRecalculoFlujos);
+        }
+    });
     
-    // Listener para tipoInteresDias: recalcular todos los dayCountFactor
+    // Listener para tipoInteresDias: recalcular todos los dayCountFactor y factores de actualización
     const tipoInteresDiasSelect = document.getElementById('tipoInteresDias');
     if (tipoInteresDiasSelect) {
         tipoInteresDiasSelect.addEventListener('change', () => {
@@ -583,6 +617,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             });
+            
+            // Recalcular factores de actualización y pagos actualizados
+            if (window.cuponesCalculos && window.cuponesCalculos.recalcularValoresDerivados) {
+                window.cuponesCalculos.recalcularValoresDerivados(cuponesData);
+            }
         });
     }
     

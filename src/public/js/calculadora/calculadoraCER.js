@@ -8,6 +8,18 @@
  */
 
 /**
+ * Obtener cantidad de decimales configurada para ajustes
+ * @returns {number} Cantidad de decimales (default: 8)
+ */
+function obtenerDecimalesAjustes() {
+    const input = document.getElementById('decimalesAjustes');
+    if (!input) return 8; // Default: 8 decimales
+    const valor = parseInt(input.value, 10);
+    if (isNaN(valor) || valor < 0 || valor > 12) return 8;
+    return valor;
+}
+
+/**
  * Obtener valor CER para una fecha específica (con intervaloFin)
  * @param {Date} fechaBase - Fecha base
  * @param {number} intervaloFin - Intervalo fin en días hábiles
@@ -327,9 +339,10 @@ async function actualizarCoeficientesCER() {
                 if (cerEmision !== null && cerEmision !== 0) {
                     const coefEmision = cerValuacion / cerEmision;
                     console.log('[actualizarCoeficientesCER] Coeficiente calculado:', coefEmision);
-                    coefCEREmisionSpan.textContent = coefEmision.toFixed(4);
+                    const decimales = obtenerDecimalesAjustes();
+                    coefCEREmisionSpan.textContent = coefEmision.toFixed(decimales);
                     if (cerEmisionValorSpan) {
-                        cerEmisionValorSpan.textContent = cerEmision.toFixed(4);
+                        cerEmisionValorSpan.textContent = cerEmision.toFixed(decimales);
                     }
                 } else {
                     console.warn('[actualizarCoeficientesCER] CER emisión es null o 0:', cerEmision);
@@ -363,9 +376,10 @@ async function actualizarCoeficientesCER() {
                 cerCompra = await obtenerCERParaFecha(fechaCompraDate, intervaloFin);
                 if (cerCompra !== null && cerCompra !== 0) {
                     const coefCompra = cerValuacion / cerCompra;
-                    coefCERCompraSpan.textContent = coefCompra.toFixed(4);
+                    const decimales = obtenerDecimalesAjustes();
+                    coefCERCompraSpan.textContent = coefCompra.toFixed(decimales);
                     if (cerCompraValorSpan) {
-                        cerCompraValorSpan.textContent = cerCompra.toFixed(4);
+                        cerCompraValorSpan.textContent = cerCompra.toFixed(decimales);
                     }
                 } else {
                     coefCERCompraSpan.textContent = 'N/A';
@@ -625,14 +639,46 @@ async function refrescarTablaCupones() {
     }
 }
 
+/**
+ * Actualizar decimales de ajustes y refrescar toda la tabla
+ * Esta función se llama cuando el usuario cambia el valor de decimales
+ */
+async function actualizarDecimalesAjustes() {
+    console.log('[actualizarDecimalesAjustes] Actualizando decimales y refrescando tabla');
+    
+    // Recalcular coeficientes CER con los nuevos decimales
+    await actualizarCoeficientesCER();
+    
+    // Recalcular todos los valores derivados (amortización ajustada, renta ajustada) con los nuevos decimales
+    if (window.cuponesModule && window.cuponesModule.getCuponesData) {
+        const cupones = window.cuponesModule.getCuponesData();
+        if (cupones && cupones.length > 0) {
+            if (window.cuponesCalculos && window.cuponesCalculos.recalcularValoresDerivados) {
+                window.cuponesCalculos.recalcularValoresDerivados(cupones);
+            }
+        }
+    }
+    
+    // Refrescar la tabla para mostrar los valores actualizados
+    if (window.cuponesModule && typeof window.cuponesModule.renderizarCupones === 'function') {
+        window.cuponesModule.renderizarCupones();
+    }
+}
+
 // Exportar funciones globalmente
 window.calculadoraCER = {
     obtenerCERParaFecha,
     actualizarCERValuacion,
     actualizarCoeficientesCER,
     actualizarVisibilidadCoeficientesCER,
-    refrescarTablaCupones
+    refrescarTablaCupones,
+    actualizarDecimalesAjustes,
+    obtenerDecimalesAjustes
 };
+
+// Exportar función globalmente para acceso desde HTML
+window.actualizarDecimalesAjustes = actualizarDecimalesAjustes;
+window.obtenerDecimalesAjustes = obtenerDecimalesAjustes;
 
 // Mantener compatibilidad con código existente
 window.obtenerCERParaFecha = obtenerCERParaFecha;

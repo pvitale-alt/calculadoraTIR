@@ -33,9 +33,109 @@ function actualizarCampoCupon(cupon, campo, valor) {
     }
 }
 
+function obtenerCantidadPartida() {
+    return normalizarNumeroDesdeInput(document.getElementById('cantidadPartida')?.value);
+}
+
+function obtenerPrecioCompra() {
+    return normalizarNumeroDesdeInput(document.getElementById('precioCompra')?.value);
+}
+
+function obtenerCoeficienteCEREmision() {
+    const texto = document.getElementById('coefCEREmision')?.textContent || '';
+    return normalizarNumeroDesdeTexto(texto);
+}
+
+function obtenerCoeficienteCERCompra() {
+    const texto = document.getElementById('coefCERCompra')?.textContent || '';
+    return normalizarNumeroDesdeTexto(texto);
+}
+
+function obtenerDecimalesAjustes() {
+    const input = document.getElementById('decimalesAjustes');
+    if (input) {
+        const valor = parseInt(input.value, 10);
+        return isNaN(valor) || valor < 0 ? 8 : Math.min(valor, 12);
+    }
+    return 8; // Por defecto 8
+}
+
+function calcularFlujoInversion(cantidad, precio, coeficiente) {
+    if (cantidad === null || precio === null) {
+        return null;
+    }
+    if (coeficiente === null || coeficiente <= 0) {
+        return null;
+    }
+    return -(cantidad * precio * coeficiente);
+}
+
+function calcularFlujoCupon(cantidad, amortizacionAjustada, rentaAjustada) {
+    if (cantidad === null || cantidad === 0) {
+        return null;
+    }
+    if (amortizacionAjustada === null || rentaAjustada === null) {
+        return null;
+    }
+    return cantidad * ((amortizacionAjustada / 100) + (rentaAjustada / 100));
+}
+
+function recalcularFlujosCupones(cupones = window.cuponesModule?.getCuponesData?.() || []) {
+    if (!Array.isArray(cupones) || cupones.length === 0) {
+        limpiarFlujosCalculados();
+        return;
+    }
+
+    const cantidadPartida = obtenerCantidadPartida();
+    const precioCompra = obtenerPrecioCompra();
+    const coeficienteCERCompra = obtenerCoeficienteCERCompra();
+
+    cupones.forEach(cupon => {
+        let flujoCalculado = null;
+
+        if (cupon.id === 'inversion') {
+            flujoCalculado = calcularFlujoInversion(cantidadPartida, precioCompra, coeficienteCERCompra);
+        } else {
+            const amortizacionAjustada = normalizarNumeroDesdeInput(cupon.amortizAjustada);
+            const rentaAjustada = normalizarNumeroDesdeInput(cupon.rentaAjustada);
+            flujoCalculado = calcularFlujoCupon(cantidadPartida, amortizacionAjustada, rentaAjustada);
+        }
+
+        if (flujoCalculado === null || !isFinite(flujoCalculado)) {
+            actualizarCampoCupon(cupon, 'flujos', '');
+        } else {
+            actualizarCampoCupon(cupon, 'flujos', formatearNumero(flujoCalculado, 8));
+        }
+    });
+
+    if (window.tirModule && typeof window.tirModule.actualizarFlujosDescontadosYSumatoria === 'function') {
+        window.tirModule.actualizarFlujosDescontadosYSumatoria();
+    }
+}
+
+function limpiarFlujosCalculados() {
+    const cupones = window.cuponesModule?.getCuponesData?.() || [];
+    cupones.forEach(cupon => {
+        actualizarCampoCupon(cupon, 'flujos', '');
+        actualizarCampoCupon(cupon, 'flujosDesc', '');
+    });
+}
+
 function normalizarNumeroDesdeTexto(texto) {
     if (typeof texto !== 'string') return normalizarNumeroDesdeInput(texto);
     return normalizarNumeroDesdeInput(texto.replace(',', '.').trim());
+}
+
+function obtenerDecimalesAjustes() {
+    // Usar la función global si está disponible, sino usar implementación local
+    if (typeof window.obtenerDecimalesAjustes === 'function') {
+        return window.obtenerDecimalesAjustes();
+    }
+    const input = document.getElementById('decimalesAjustes');
+    if (!input) return 8; // Default: 8 decimales
+    const valor = parseInt(input.value, 10);
+    if (isNaN(valor) || valor < 0 || valor > 12) return 8;
+    return valor;
 }
 
 function aplicarRentaTNAEnCupones(cupones, rentaTNA) {
@@ -74,34 +174,76 @@ function aplicarAmortizacionEnCupones(cupones, porcentajeAmortizacion) {
     }
 }
 
-function obtenerValorCERBaseEmision() {
-    if (window.cerValoresReferencia && window.cerValoresReferencia.cerEmision) {
-        return window.cerValoresReferencia.cerEmision;
+/**
+ * Calcular factor de actualización para un cupón
+ * Factor = (1 + TIR) ^ (FRAC Año entre fecha liq cupon y fecha valuacion)
+ */
+function calcularFactorActualizacion(cupon) {
+    // Obtener TIR
+    const tir = window.tirModule?.getUltimaTIR?.() || null;
+    if (tir === null) {
+        return null;
     }
     
-    const cerValuacion = normalizarNumeroDesdeInput(document.getElementById('cerValuacion')?.value);
-    const coefTexto = document.getElementById('coefCEREmision')?.textContent || '';
-    const coefEmision = normalizarNumeroDesdeTexto(coefTexto);
-    
-    if (cerValuacion && coefEmision && coefEmision !== 0) {
-        return cerValuacion / coefEmision;
+    // Obtener fecha de valuación
+    const fechaValuacionStr = document.getElementById('fechaValuacion')?.value;
+    if (!fechaValuacionStr) {
+        return null;
     }
-    return null;
+    
+    // Obtener fecha liquidación del cupón
+    if (!cupon.fechaLiquid) {
+        return null;
+    }
+    
+    // Convertir fechas a formato ISO (YYYY-MM-DD)
+    let fechaValuacionISO = fechaValuacionStr;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaValuacionISO)) {
+        fechaValuacionISO = convertirFechaDDMMAAAAaYYYYMMDD(fechaValuacionISO);
+    }
+    
+    let fechaLiquidISO = cupon.fechaLiquid;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaLiquidISO)) {
+        fechaLiquidISO = convertirFechaDDMMAAAAaYYYYMMDD(fechaLiquidISO);
+    }
+    
+    // Obtener tipoInteresDias
+    const tipoInteresDias = parseInt(document.getElementById('tipoInteresDias')?.value || '0', 10);
+    
+    // Calcular fracción de año entre fecha liquidación y fecha valuación
+    const fraccionAnio = calcularFraccionAnio(fechaLiquidISO, fechaValuacionISO, tipoInteresDias);
+    
+    if (fraccionAnio <= 0) {
+        return 1; // Si la fracción es 0 o negativa, el factor es 1
+    }
+    
+    // Calcular factor = (1 + TIR) ^ fraccionAnio
+    const factor = Math.pow(1 + tir, fraccionAnio);
+    return factor;
 }
 
-function calcularFactorCER(cupon, cerBaseEmision) {
-    const cerFinal = normalizarNumeroDesdeInput(cupon?.valorCERFinal) || 0;
-    if (!cerBaseEmision || cerBaseEmision === 0 || cerFinal === 0) {
-        return 1;
+/**
+ * Calcular pagos actualizados para un cupón
+ * Pagos Actualizados = (amortizacion ajustada * Factor actualizacion / 100) + (Renta ajustada * factor actualizacion /100)
+ */
+function calcularPagosActualizados(cupon, factorActualizacion) {
+    if (factorActualizacion === null) {
+        return null;
     }
-    return cerFinal / cerBaseEmision;
+    
+    const amortizacionAjustada = normalizarNumeroDesdeInput(cupon.amortizAjustada) || 0;
+    const rentaAjustada = normalizarNumeroDesdeInput(cupon.rentaAjustada) || 0;
+    
+    const pagosActualizados = (amortizacionAjustada * factorActualizacion / 100) + (rentaAjustada * factorActualizacion / 100);
+    return pagosActualizados;
 }
 
 function recalcularValoresDerivados(cupones, opciones = {}) {
     if (!Array.isArray(cupones) || cupones.length === 0) return;
     
     const rentaTNAValor = normalizarNumeroDesdeInput(opciones.rentaTNA ?? document.getElementById('rentaTNA')?.value);
-    const cerBaseEmision = obtenerValorCERBaseEmision();
+    const coeficienteCEREmision = obtenerCoeficienteCEREmision() || 1;
+    const decimalesAjustes = obtenerDecimalesAjustes();
     
     let residual = 100;
     cupones.forEach(cupon => {
@@ -113,21 +255,38 @@ function recalcularValoresDerivados(cupones, opciones = {}) {
         const residualActual = Math.max(0, residual);
         actualizarCampoCupon(cupon, 'valorResidual', formatearNumero(residualActual, 4));
         
-        const factorCER = calcularFactorCER(cupon, cerBaseEmision);
-        const amortizAjustada = amortizacionActual * factorCER;
-        actualizarCampoCupon(cupon, 'amortizAjustada', formatearNumero(amortizAjustada, 5));
+        const amortizAjustada = amortizacionActual * coeficienteCEREmision;
+        actualizarCampoCupon(cupon, 'amortizAjustada', formatearNumero(amortizAjustada, decimalesAjustes));
         
         const dayCount = normalizarNumeroDesdeInput(cupon.dayCountFactor) || 0;
         const rentaNominal = (rentaTNAValor || 0) * dayCount;
         actualizarCampoCupon(cupon, 'rentaNominal', formatearNumero(rentaNominal, 5));
         
         const residualFactor = residualActual / 100;
-        const rentaAjustada = rentaNominal * factorCER * residualFactor;
-        actualizarCampoCupon(cupon, 'rentaAjustada', formatearNumero(rentaAjustada, 5));
+        const rentaAjustada = rentaNominal * coeficienteCEREmision * residualFactor;
+        actualizarCampoCupon(cupon, 'rentaAjustada', formatearNumero(rentaAjustada, decimalesAjustes));
+        
+        // Calcular factor de actualización
+        const factorActualizacion = calcularFactorActualizacion(cupon);
+        if (factorActualizacion !== null) {
+            actualizarCampoCupon(cupon, 'factorActualiz', formatearNumero(factorActualizacion, decimalesAjustes));
+            
+            // Calcular pagos actualizados
+            const pagosActualizados = calcularPagosActualizados(cupon, factorActualizacion);
+            if (pagosActualizados !== null) {
+                actualizarCampoCupon(cupon, 'pagosActualiz', formatearNumero(pagosActualizados, decimalesAjustes));
+            } else {
+                actualizarCampoCupon(cupon, 'pagosActualiz', '');
+            }
+        } else {
+            actualizarCampoCupon(cupon, 'factorActualiz', '');
+            actualizarCampoCupon(cupon, 'pagosActualiz', '');
+        }
         
         residual = Math.max(0, residualActual - amortizacionActual);
     });
     
+    recalcularFlujosCupones(cupones);
 }
 
 function aplicarValoresFinancierosEnCupones(cupones, opciones = {}) {
@@ -179,6 +338,7 @@ window.cuponesCalculos = {
     aplicarValoresFinancieros: aplicarValoresFinancierosEnCupones,
     calcularDayCountFactor,
     calcularRentaNominal,
-    calcularTIR
+    calcularTIR,
+    recalcularFlujos: recalcularFlujosCupones
 };
 
