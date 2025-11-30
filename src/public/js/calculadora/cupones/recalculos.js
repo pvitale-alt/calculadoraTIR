@@ -23,7 +23,8 @@ async function recalcularDependencias(cupon, campoModificado) {
     // Para cupones normales
     switch (campoModificado) {
         case 'fechaInicio':
-            // fechaInicio → inicioIntervalo → valorCERInicio
+            // fechaInicio → inicioIntervalo → valorCERInicio (o promedio TAMAR si no hay ajuste CER)
+            // Esto asegura que inicioIntervalo sea consistente con fechaInicio
             await recalcularInicioIntervalo(cupon);
             // fechaInicio → dayCountFactor
             recalcularDayCountFactor(cupon);
@@ -32,11 +33,24 @@ async function recalcularDependencias(cupon, campoModificado) {
         case 'fechaFinDev':
             // fechaFinDev → dayCountFactor
             recalcularDayCountFactor(cupon);
+            // Si no hay ajuste CER, fechaFinDev → finalIntervalo
+            // PERO solo recalcular finalIntervalo, sin disparar otros recálculos que puedan afectar fechaInicio o fechaFinDev
+            const ajusteCERFinDev = document.getElementById('ajusteCER')?.checked || false;
+            if (!ajusteCERFinDev && cupon.fechaFinDev) {
+                // Recalcular solo finalIntervalo sin disparar recálculos adicionales
+                // Esto asegura que finalIntervalo sea consistente con fechaFinDev
+                await recalcularFinalIntervaloSinRecalculosAdicionales(cupon);
+            }
             break;
             
         case 'fechaLiquid':
-            // fechaLiquid → finalIntervalo → valorCERFinal
-            await recalcularFinalIntervalo(cupon);
+            // fechaLiquid → fechaFinDev (fechaLiquid + diasRestarFechaFinDev)
+            await recalcularFechaFinDev(cupon);
+            // fechaLiquid → finalIntervalo → valorCERFinal (solo si hay ajuste CER)
+            const ajusteCERLiquid = document.getElementById('ajusteCER')?.checked || false;
+            if (ajusteCERLiquid) {
+                await recalcularFinalIntervalo(cupon);
+            }
             break;
             
         case 'inicioIntervalo':
@@ -52,7 +66,59 @@ async function recalcularDependencias(cupon, campoModificado) {
 }
 
 /**
+ * Recalcula fechaFinDev basado en fechaLiquid + diasRestarFechaFinDev
+ */
+async function recalcularFechaFinDev(cupon) {
+    const fechaPagoStr = cupon.fechaPago || cupon.fechaLiquid;
+    if (!fechaPagoStr) {
+        // Si no hay fechaLiquid, limpiar fechaFinDev
+        cupon.fechaFinDev = '';
+        const inputFechaFinDev = document.getElementById(`fechaFinDev_${cupon.id}`);
+        if (inputFechaFinDev) {
+            inputFechaFinDev.value = '';
+        }
+        return;
+    }
+    
+    try {
+        // Obtener diasRestarFechaFinDev del formulario
+        const diasRestar = parseInt(document.getElementById('diasRestarFechaFinDev')?.value || '-1', 10);
+        
+        // Convertir fecha de pago programada a Date
+        const fechaPagoDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(fechaPagoStr));
+        if (!fechaPagoDate) return;
+        
+        // Calcular fechaFinDev = fechaPago + diasRestar
+        const fechaFinDevDate = new Date(fechaPagoDate);
+        fechaFinDevDate.setDate(fechaPagoDate.getDate() + diasRestar);
+        
+        // Convertir de vuelta a DD/MM/AAAA
+        const fechaFinDevStr = convertirFechaYYYYMMDDaDDMMAAAA(formatearFechaInput(fechaFinDevDate), '/');
+        
+        // Actualizar el valor en el cupón y en el input
+        cupon.fechaFinDev = fechaFinDevStr;
+        const inputFechaFinDev = document.getElementById(`fechaFinDev_${cupon.id}`);
+        if (inputFechaFinDev) {
+            inputFechaFinDev.value = fechaFinDevStr;
+        }
+        
+        // Recalcular dayCountFactor ya que depende de fechaFinDev
+        recalcularDayCountFactor(cupon);
+        
+        // Si no hay ajuste CER, recalcular finalIntervalo (que depende de fechaFinDev)
+        const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
+        if (!ajusteCER) {
+            await recalcularFinalIntervaloSinRecalculosAdicionales(cupon);
+        }
+        
+    } catch (error) {
+        console.error('Error al recalcular fechaFinDev:', error);
+    }
+}
+
+/**
  * Recalcula inicioIntervalo basado en fechaInicio
+ * Para calculadoras sin ajuste CER, inicioIntervalo debe ser consistente con fechaInicio
  */
 async function recalcularInicioIntervalo(cupon) {
     const fechaInicioStr = cupon.fechaInicio;
@@ -62,6 +128,7 @@ async function recalcularInicioIntervalo(cupon) {
         // Obtener intervaloInicio del formulario
         const intervaloInicio = parseInt(document.getElementById('intervaloInicio')?.value || '0', 10);
         const fechaValuacionStr = document.getElementById('fechaValuacion')?.value || '';
+        const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
         
         // Convertir fecha
         const fechaInicioDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(fechaInicioStr));
@@ -78,11 +145,11 @@ async function recalcularInicioIntervalo(cupon) {
             feriados = await window.cuponesDiasHabiles.cargarFeriadosDesdeBD(fechaDesde, fechaHasta);
         }
         
-        // Calcular inicioIntervalo
+        // Calcular inicioIntervalo basado en fechaInicio
         let inicioIntervalo = window.cuponesDiasHabiles.sumarDiasHabiles(fechaInicioDate, intervaloInicio, feriados);
         
-        // Validación con fecha valuación
-        if (fechaValuacionStr) {
+        // Validación con fecha valuación (solo para calculadoras con ajuste CER)
+        if (ajusteCER && fechaValuacionStr) {
             const fechaValuacionDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(fechaValuacionStr));
             if (fechaValuacionDate && inicioIntervalo > fechaValuacionDate) {
                 inicioIntervalo = window.cuponesDiasHabiles.sumarDiasHabiles(fechaValuacionDate, intervaloInicio, feriados);
@@ -99,8 +166,15 @@ async function recalcularInicioIntervalo(cupon) {
             inputInicioIntervalo.value = inicioIntervaloStr;
         }
         
-        // Recalcular valorCERInicio
-        await recalcularValorCERInicio(cupon);
+        // Recalcular valorCERInicio (solo si hay ajuste CER)
+        if (ajusteCER) {
+            await recalcularValorCERInicio(cupon);
+        } else {
+            // Si no hay ajuste CER, recalcular promedio TAMAR
+            if (cupon.finalIntervalo && window.cuponesCalculos && typeof window.cuponesCalculos.calcularPromedioTAMAR === 'function') {
+                await window.cuponesCalculos.calcularPromedioTAMAR(cupon);
+            }
+        }
         
     } catch (error) {
         console.error('Error al recalcular inicioIntervalo:', error);
@@ -108,11 +182,18 @@ async function recalcularInicioIntervalo(cupon) {
 }
 
 /**
- * Recalcula finalIntervalo basado en fechaLiquid
+ * Recalcula finalIntervalo basado en fechaLiquid (con ajuste CER) o fechaFinDev (sin ajuste CER)
+ * Versión que solo recalcula finalIntervalo sin disparar recálculos adicionales
+ * Para calculadoras sin ajuste CER, finalIntervalo debe ser consistente con fechaFinDev
  */
-async function recalcularFinalIntervalo(cupon) {
-    const fechaLiquidStr = cupon.fechaLiquid;
-    if (!fechaLiquidStr) return;
+async function recalcularFinalIntervaloSinRecalculosAdicionales(cupon) {
+    // Verificar si hay ajuste CER
+    const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
+    
+    // Sin ajuste CER: usar fechaFinDev
+    const fechaBaseStr = ajusteCER ? cupon.fechaLiquid : cupon.fechaFinDev;
+    
+    if (!fechaBaseStr) return;
     
     try {
         // Obtener intervaloFin del formulario
@@ -120,12 +201,82 @@ async function recalcularFinalIntervalo(cupon) {
         const fechaValuacionStr = document.getElementById('fechaValuacion')?.value || '';
         
         // Convertir fecha
-        const fechaLiquidDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(fechaLiquidStr));
-        if (!fechaLiquidDate) return;
+        const fechaBaseDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(fechaBaseStr));
+        if (!fechaBaseDate) return;
         
         // Obtener o cargar feriados
-        const fechaDesde = formatearFechaInput(fechaLiquidDate);
-        const fechaHastaDate = new Date(fechaLiquidDate);
+        const fechaDesde = formatearFechaInput(fechaBaseDate);
+        const fechaHastaDate = new Date(fechaBaseDate);
+        fechaHastaDate.setDate(fechaHastaDate.getDate() + Math.abs(intervaloFin) + 60);
+        const fechaHasta = formatearFechaInput(fechaHastaDate);
+        
+        let feriados = window.cuponesDiasHabiles.obtenerFeriados(fechaDesde, fechaHasta);
+        if (!feriados || feriados.length === 0) {
+            feriados = await window.cuponesDiasHabiles.cargarFeriadosDesdeBD(fechaDesde, fechaHasta);
+        }
+        
+        // Calcular finalIntervalo basado en fechaBase (fechaFinDev para no-CER, fechaLiquid para CER)
+        let finalIntervalo = window.cuponesDiasHabiles.sumarDiasHabiles(fechaBaseDate, intervaloFin, feriados);
+        
+        // Validación con fecha valuación (solo para calculadoras con ajuste CER)
+        if (ajusteCER && fechaValuacionStr) {
+            const fechaValuacionDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(fechaValuacionStr));
+            if (fechaValuacionDate && finalIntervalo > fechaValuacionDate) {
+                finalIntervalo = window.cuponesDiasHabiles.sumarDiasHabiles(fechaValuacionDate, intervaloFin, feriados);
+            }
+        }
+        
+        // Actualizar el valor en el cupón y en el input
+        const finalIntervaloStr = convertirFechaYYYYMMDDaDDMMAAAA(formatearFechaInput(finalIntervalo), '/');
+        cupon.finalIntervalo = finalIntervaloStr;
+        
+        // Actualizar input en el DOM
+        const inputFinalIntervalo = document.getElementById(`finalIntervalo_${cupon.id}`);
+        if (inputFinalIntervalo) {
+            inputFinalIntervalo.value = finalIntervaloStr;
+        }
+        
+        // Recalcular promedio TAMAR sin disparar otros recálculos (solo si no hay ajuste CER)
+        if (!ajusteCER && cupon.inicioIntervalo && cupon.finalIntervalo && window.cuponesCalculos && typeof window.cuponesCalculos.calcularPromedioTAMAR === 'function') {
+            await window.cuponesCalculos.calcularPromedioTAMAR(cupon);
+        }
+        
+    } catch (error) {
+        console.error('Error al recalcular finalIntervalo:', error);
+    }
+}
+
+/**
+ * Recalcula finalIntervalo basado en fechaLiquid (con ajuste CER) o fechaFinDev (sin ajuste CER)
+ */
+async function recalcularFinalIntervalo(cupon) {
+    // Verificar si hay ajuste CER
+    const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
+    
+    // Determinar la fecha base según ajuste CER
+    let fechaBaseStr = null;
+    if (ajusteCER) {
+        // Con ajuste CER: usar fechaLiquid
+        fechaBaseStr = cupon.fechaLiquid;
+    } else {
+        // Sin ajuste CER: usar fechaFinDev
+        fechaBaseStr = cupon.fechaFinDev;
+    }
+    
+    if (!fechaBaseStr) return;
+    
+    try {
+        // Obtener intervaloFin del formulario
+        const intervaloFin = parseInt(document.getElementById('intervaloFin')?.value || '0', 10);
+        const fechaValuacionStr = document.getElementById('fechaValuacion')?.value || '';
+        
+        // Convertir fecha
+        const fechaBaseDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(fechaBaseStr));
+        if (!fechaBaseDate) return;
+        
+        // Obtener o cargar feriados
+        const fechaDesde = formatearFechaInput(fechaBaseDate);
+        const fechaHastaDate = new Date(fechaBaseDate);
         fechaHastaDate.setDate(fechaHastaDate.getDate() + Math.abs(intervaloFin) + 60);
         const fechaHasta = formatearFechaInput(fechaHastaDate);
         
@@ -135,7 +286,7 @@ async function recalcularFinalIntervalo(cupon) {
         }
         
         // Calcular finalIntervalo
-        let finalIntervalo = window.cuponesDiasHabiles.sumarDiasHabiles(fechaLiquidDate, intervaloFin, feriados);
+        let finalIntervalo = window.cuponesDiasHabiles.sumarDiasHabiles(fechaBaseDate, intervaloFin, feriados);
         
         // Validación con fecha valuación
         if (fechaValuacionStr) {
@@ -155,13 +306,18 @@ async function recalcularFinalIntervalo(cupon) {
             inputFinalIntervalo.value = finalIntervaloStr;
         }
         
-        // Recalcular valorCERFinal
-        await recalcularValorCERFinal(cupon);
-        
-        // Actualizar estilos (puede cambiar el estado futuro/no futuro)
-        if (window.cuponesModule && typeof window.cuponesModule.actualizarEstilosCupones === 'function') {
-            window.cuponesModule.actualizarEstilosCupones();
+        // Recalcular valorCERFinal solo si hay ajuste CER
+        if (ajusteCER) {
+            await recalcularValorCERFinal(cupon);
+        } else {
+            // Si no hay ajuste CER, recalcular promedio TAMAR
+            if (cupon.inicioIntervalo && cupon.finalIntervalo && window.cuponesCalculos && typeof window.cuponesCalculos.calcularPromedioTAMAR === 'function') {
+                await window.cuponesCalculos.calcularPromedioTAMAR(cupon);
+            }
         }
+        
+        // NO actualizar estilos aquí para evitar recálculos que puedan afectar fechaInicio o fechaFinDev
+        // Los estilos se actualizarán cuando sea necesario desde otros lugares
         
     } catch (error) {
         console.error('Error al recalcular finalIntervalo:', error);
@@ -319,6 +475,8 @@ window.cuponesRecalculos = {
     recalcularDependencias,
     recalcularInicioIntervalo,
     recalcularFinalIntervalo,
+    recalcularFinalIntervaloSinRecalculosAdicionales,
+    recalcularFechaFinDev,
     recalcularValorCERInicio,
     recalcularValorCERFinal,
     recalcularDayCountFactor

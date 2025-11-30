@@ -2,11 +2,60 @@
  * Módulo para calcular fechas de cupones basado en periodicidad
  */
 
+function obtenerDiaPago(fechaPrimeraRenta) {
+    if (!fechaPrimeraRenta) return null;
+    const valor = fechaPrimeraRenta.toString().trim();
+    if (/^\d{1,2}$/.test(valor)) {
+        const dia = parseInt(valor, 10);
+        return dia >= 1 && dia <= 31 ? dia : null;
+    }
+    if (/^\d{1,2}\/\d{1,2}$/.test(valor)) {
+        const partes = valor.split('/');
+        const dia = parseInt(partes[0], 10);
+        return dia >= 1 && dia <= 31 ? dia : null;
+    }
+    return null;
+}
+
+function obtenerMesesPorPeriodo(periodicidad = '') {
+    switch ((periodicidad || '').toLowerCase()) {
+        case 'mensual':
+            return 1;
+        case 'bimestral':
+            return 2;
+        case 'trimestral':
+            return 3;
+        case 'semestral':
+            return 6;
+        case 'anual':
+            return 12;
+        default:
+            return null;
+    }
+}
+
+function ajustarDiaAlMes(fechaBase, diaPago) {
+    const fecha = new Date(fechaBase.getFullYear(), fechaBase.getMonth(), 1);
+    const ultimoDia = new Date(fechaBase.getFullYear(), fechaBase.getMonth() + 1, 0).getDate();
+    fecha.setDate(Math.min(Math.max(1, diaPago), ultimoDia));
+    return fecha;
+}
+
+function obtenerPrimeraFechaPago(fechaEmision, diaPago) {
+    const fechaInicial = ajustarDiaAlMes(fechaEmision, diaPago);
+    if (fechaInicial >= fechaEmision) {
+        return fechaInicial;
+    }
+    const siguienteMes = new Date(fechaEmision);
+    siguienteMes.setMonth(siguienteMes.getMonth() + 1);
+    return ajustarDiaAlMes(siguienteMes, diaPago);
+}
+
 /**
  * Calcular el número del cupón vigente en la fecha de compra
  * El cupón vigente es el que tiene fecha de pago >= fecha de compra
  * @param {Date} fechaEmision - Fecha de emisión
- * @param {string} fechaPrimeraRenta - Fecha de primera renta en formato DD/MM
+ * @param {string} fechaPrimeraRenta - Día de pago (1-31)
  * @param {string} periodicidad - Periodicidad: 'mensual', 'bimestral', 'trimestral', 'semestral', 'anual'
  * @param {Date} fechaCompra - Fecha de compra
  * @returns {number} Número del cupón vigente en la fecha de compra (1-based)
@@ -16,45 +65,17 @@ function calcularNumeroPrimerCupon(fechaEmision, fechaPrimeraRenta, periodicidad
         return 1;
     }
     
-    // Parsear fecha de primera renta (DD/MM)
-    const partes = fechaPrimeraRenta.split('/');
-    if (partes.length !== 2) {
+    const diaPago = obtenerDiaPago(fechaPrimeraRenta);
+    if (diaPago === null) {
         return 1;
     }
     
-    const diaPago = parseInt(partes[0], 10);
-    const mesPago = parseInt(partes[1], 10) - 1; // Los meses en JS son 0-11
-    
-    // Calcular meses según periodicidad
-    let mesesPorPeriodo;
-    switch (periodicidad.toLowerCase()) {
-        case 'mensual':
-            mesesPorPeriodo = 1;
-            break;
-        case 'bimestral':
-            mesesPorPeriodo = 2;
-            break;
-        case 'trimestral':
-            mesesPorPeriodo = 3;
-            break;
-        case 'semestral':
-            mesesPorPeriodo = 6;
-            break;
-        case 'anual':
-            mesesPorPeriodo = 12;
-            break;
-        default:
-            return 1;
+    const mesesPorPeriodo = obtenerMesesPorPeriodo(periodicidad);
+    if (!mesesPorPeriodo) {
+        return 1;
     }
     
-    // Calcular primera fecha de pago
-    const añoEmision = fechaEmision.getFullYear();
-    let primeraFechaPago = new Date(añoEmision, mesPago, diaPago);
-    
-    // Si la fecha de pago es anterior a la fecha de emisión, usar el año siguiente
-    if (primeraFechaPago < fechaEmision) {
-        primeraFechaPago = new Date(añoEmision + 1, mesPago, diaPago);
-    }
+    const primeraFechaPago = obtenerPrimeraFechaPago(fechaEmision, diaPago);
     
     // Encontrar el cupón vigente (fecha de pago >= fecha de compra)
     let numeroCupon = 1;
@@ -64,8 +85,8 @@ function calcularNumeroPrimerCupon(fechaEmision, fechaPrimeraRenta, periodicidad
     
     // Avanzar hasta encontrar el cupón vigente
     while (fechaActual < fechaCompra && fechaActual <= fechaLimite) {
-        const fechaAnterior = new Date(fechaActual);
         fechaActual.setMonth(fechaActual.getMonth() + mesesPorPeriodo);
+        fechaActual = ajustarDiaAlMes(fechaActual, diaPago);
         numeroCupon++;
         
         // Si la fecha actual es >= fecha de compra, este es el cupón vigente
@@ -79,174 +100,209 @@ function calcularNumeroPrimerCupon(fechaEmision, fechaPrimeraRenta, periodicidad
 
 /**
  * Calcular fechas de cupones basado en fecha emisión, fecha pago y periodicidad
- * Incluye el cupón vigente en la fecha de compra
+ * Calcula desde la fecha de amortización hacia atrás, incluyendo el cupón vigente en la fecha de compra
  * @param {Date} fechaEmision - Fecha de emisión
- * @param {string} fechaPrimeraRenta - Fecha de primera renta en formato DD/MM
+ * @param {string} fechaPrimeraRenta - Día de pago (1-31)
  * @param {string} periodicidad - Periodicidad: 'mensual', 'bimestral', 'trimestral', 'semestral', 'anual'
  * @param {Date} fechaCompra - Fecha de compra (incluir cupón vigente en esta fecha)
  * @param {Date} fechaAmortizacion - Fecha de amortización (último cupón)
- * @returns {Array<Date>} Array de fechas de cupones (incluye el vigente en fecha de compra)
+ * @returns {Array<Date>} Array de fechas de cupones ordenadas (incluye el vigente en fecha de compra)
  */
 function calcularFechasCupones(fechaEmision, fechaPrimeraRenta, periodicidad, fechaCompra, fechaAmortizacion) {
     if (!fechaEmision || !fechaPrimeraRenta || !periodicidad) {
         return [];
     }
     
-    // Parsear fecha de primera renta (DD/MM)
-    const partes = fechaPrimeraRenta.split('/');
-    if (partes.length !== 2) {
+    const diaPago = obtenerDiaPago(fechaPrimeraRenta);
+    if (diaPago === null) {
         return [];
     }
     
-    const diaPago = parseInt(partes[0], 10);
-    const mesPago = parseInt(partes[1], 10) - 1; // Los meses en JS son 0-11
-    
-    // Calcular meses según periodicidad
-    let mesesPorPeriodo;
-    switch (periodicidad.toLowerCase()) {
-        case 'mensual':
-            mesesPorPeriodo = 1;
-            break;
-        case 'bimestral':
-            mesesPorPeriodo = 2;
-            break;
-        case 'trimestral':
-            mesesPorPeriodo = 3;
-            break;
-        case 'semestral':
-            mesesPorPeriodo = 6;
-            break;
-        case 'anual':
-            mesesPorPeriodo = 12;
-            break;
-        default:
-            return [];
+    const mesesPorPeriodo = obtenerMesesPorPeriodo(periodicidad);
+    if (!mesesPorPeriodo) {
+        return [];
     }
     
-    // Calcular primera fecha de pago
-    const añoEmision = fechaEmision.getFullYear();
-    let primeraFechaPago = new Date(añoEmision, mesPago, diaPago);
+    // Normalizar fechas para comparación (solo año, mes, día, sin horas)
+    const normalizarFecha = (fecha) => {
+        return new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+    };
     
-    // Si la fecha de pago es anterior a la fecha de emisión, usar el año siguiente
-    if (primeraFechaPago < fechaEmision) {
-        primeraFechaPago = new Date(añoEmision + 1, mesPago, diaPago);
-    }
+    const fechaCompraNormalizada = normalizarFecha(fechaCompra);
+    const fechaEmisionNormalizada = normalizarFecha(fechaEmision);
     
-    // Encontrar el cupón vigente en la fecha de compra
-    // El cupón vigente es el que tiene fecha de pago >= fecha de compra
-    let fechaCuponVigente = new Date(primeraFechaPago);
-    let contador = 0;
-    const maxCupones = 120; // Límite de seguridad
-    
-    // Avanzar hasta encontrar el cupón vigente (fecha de pago >= fecha de compra)
-    while (fechaCuponVigente < fechaCompra && contador < maxCupones) {
-        const fechaAnterior = new Date(fechaCuponVigente);
-        fechaCuponVigente.setMonth(fechaCuponVigente.getMonth() + mesesPorPeriodo);
-        
-        // Si pasamos la fecha de compra, el cupón anterior podría ser el vigente
-        // pero necesitamos el cupón cuyo período contiene la fecha de compra
-        if (fechaCuponVigente > fechaCompra) {
-            // El cupón vigente es el que tiene fecha de pago = fechaCuponVigente
-            // porque fechaCompra está entre fechaAnterior y fechaCuponVigente
-            break;
-        }
-        contador++;
-    }
-    
-    // Generar todas las fechas de cupones desde el cupón vigente hasta fechaAmortizacion
-    const fechasCupones = [];
-    const fechaLimite = fechaAmortizacion || new Date(fechaEmision);
+    // Si no hay fecha de amortización, calcular hacia adelante desde fecha emisión
     if (!fechaAmortizacion) {
-        fechaLimite.setFullYear(fechaLimite.getFullYear() + 10);
-    }
-    
-    // Agregar el cupón vigente (fecha de pago >= fecha de compra)
-    if (fechaCuponVigente <= fechaLimite) {
-        fechasCupones.push(new Date(fechaCuponVigente));
-    }
-    
-    // Agregar cupones siguientes hasta la fecha límite
-    let fechaActual = new Date(fechaCuponVigente);
-    fechaActual.setMonth(fechaActual.getMonth() + mesesPorPeriodo);
-    contador = 0;
-    
-    while (fechaActual <= fechaLimite && contador < maxCupones) {
-        fechasCupones.push(new Date(fechaActual));
+        let primeraFechaPago = obtenerPrimeraFechaPago(fechaEmision, diaPago);
+        const primeraFechaPagoNormalizada = normalizarFecha(primeraFechaPago);
         
-        // Si llegamos a la fecha de amortización, detener
-        if (fechaAmortizacion && fechaActual >= fechaAmortizacion) {
+        // Encontrar el cupón vigente
+        let fechaCuponVigente = new Date(primeraFechaPago);
+        let contador = 0;
+        const maxCupones = 120;
+        
+        if (fechaCompraNormalizada.getTime() === fechaEmisionNormalizada.getTime()) {
+            if (primeraFechaPagoNormalizada >= fechaCompraNormalizada) {
+                fechaCuponVigente = new Date(primeraFechaPago);
+            } else {
+                fechaCuponVigente.setMonth(fechaCuponVigente.getMonth() + mesesPorPeriodo);
+                fechaCuponVigente = ajustarDiaAlMes(fechaCuponVigente, diaPago);
+            }
+        } else if (primeraFechaPagoNormalizada >= fechaCompraNormalizada) {
+            fechaCuponVigente = new Date(primeraFechaPago);
+        } else {
+            fechaCuponVigente = new Date(primeraFechaPago);
+            while (contador < maxCupones) {
+                const fechaCuponVigenteNormalizada = normalizarFecha(fechaCuponVigente);
+                if (fechaCuponVigenteNormalizada >= fechaCompraNormalizada) {
+                    break;
+                }
+                fechaCuponVigente.setMonth(fechaCuponVigente.getMonth() + mesesPorPeriodo);
+                fechaCuponVigente = ajustarDiaAlMes(fechaCuponVigente, diaPago);
+                contador++;
+            }
+        }
+        
+        // Generar cupones hacia adelante
+        const fechasCupones = [];
+        const fechaLimite = new Date(fechaEmision);
+        fechaLimite.setFullYear(fechaLimite.getFullYear() + 10);
+        const fechaLimiteNormalizada = normalizarFecha(fechaLimite);
+        const fechaCuponVigenteNormalizada = normalizarFecha(fechaCuponVigente);
+        
+        if (fechaCuponVigenteNormalizada <= fechaLimiteNormalizada) {
+            fechasCupones.push(fechaCuponVigenteNormalizada);
+        }
+        
+        let fechaActual = new Date(fechaCuponVigente);
+        fechaActual.setMonth(fechaActual.getMonth() + mesesPorPeriodo);
+        fechaActual = ajustarDiaAlMes(fechaActual, diaPago);
+        contador = 0;
+        
+        while (contador < maxCupones) {
+            const fechaActualNormalizada = normalizarFecha(fechaActual);
+            if (fechaActualNormalizada > fechaLimiteNormalizada) {
+                break;
+            }
+            const yaExiste = fechasCupones.some(fecha => fecha.getTime() === fechaActualNormalizada.getTime());
+            if (!yaExiste) {
+                fechasCupones.push(fechaActualNormalizada);
+            }
+            fechaActual.setMonth(fechaActual.getMonth() + mesesPorPeriodo);
+            fechaActual = ajustarDiaAlMes(fechaActual, diaPago);
+            contador++;
+        }
+        
+        return fechasCupones;
+    }
+    
+    // Si hay fecha de amortización, calcular desde esa fecha hacia atrás
+    const fechaAmortizacionNormalizada = normalizarFecha(fechaAmortizacion);
+    
+    // Ajustar la fecha de amortización al día de pago correspondiente
+    let fechaUltimoCupon = ajustarDiaAlMes(fechaAmortizacion, diaPago);
+    const fechaUltimoCuponNormalizada = normalizarFecha(fechaUltimoCupon);
+    
+    // Si la fecha ajustada es mayor a la fecha de amortización, retroceder un período
+    if (fechaUltimoCuponNormalizada > fechaAmortizacionNormalizada) {
+        fechaUltimoCupon.setMonth(fechaUltimoCupon.getMonth() - mesesPorPeriodo);
+        fechaUltimoCupon = ajustarDiaAlMes(fechaUltimoCupon, diaPago);
+    }
+    
+    // Calcular todas las fechas de cupones desde la fecha de amortización hacia atrás
+    const fechasCupones = [];
+    const fechaMinima = fechaEmisionNormalizada;
+    let fechaActual = new Date(fechaUltimoCupon);
+    let contador = 0;
+    const maxCupones = 120;
+    
+    // Agregar cupones desde la fecha de amortización hacia atrás hasta la fecha de emisión
+    while (contador < maxCupones) {
+        const fechaActualNormalizada = normalizarFecha(fechaActual);
+        
+        // Si pasamos la fecha de emisión, detener
+        if (fechaActualNormalizada < fechaMinima) {
             break;
         }
         
-        // Avanzar al siguiente cupón
-        fechaActual.setMonth(fechaActual.getMonth() + mesesPorPeriodo);
+        // Verificar que no esté duplicado
+        const yaExiste = fechasCupones.some(fecha => {
+            return fecha.getTime() === fechaActualNormalizada.getTime();
+        });
+        
+        if (!yaExiste) {
+            fechasCupones.push(fechaActualNormalizada);
+        }
+        
+        // Retroceder al cupón anterior
+        fechaActual.setMonth(fechaActual.getMonth() - mesesPorPeriodo);
+        fechaActual = ajustarDiaAlMes(fechaActual, diaPago);
         contador++;
     }
     
-    return fechasCupones;
+    // Ordenar las fechas de menor a mayor (más antigua a más reciente)
+    fechasCupones.sort((a, b) => a.getTime() - b.getTime());
+    
+    // Eliminar duplicados después de ordenar
+    const fechasCuponesSinDuplicados = [];
+    fechasCupones.forEach(fecha => {
+        const yaExiste = fechasCuponesSinDuplicados.some(f => f.getTime() === fecha.getTime());
+        if (!yaExiste) {
+            fechasCuponesSinDuplicados.push(fecha);
+        }
+    });
+    
+    // Determinar si es caso borde: fecha compra = fecha emisión
+    const esCompraMismoQueEmision = fechaCompraNormalizada.getTime() === fechaEmisionNormalizada.getTime();
+    
+    // Filtrar cupones según el caso:
+    // - Si fecha compra = fecha emisión: solo incluir cupones con fecha > fecha compra
+    //   (porque la fecha de pago del primer cupón debe ser posterior a la emisión)
+    // - Si fecha compra > fecha emisión: incluir cupones con fecha >= fecha compra
+    //   (el cupón vigente es el primero con fecha de pago >= fecha compra)
+    const fechasCuponesFiltradas = fechasCuponesSinDuplicados.filter(fecha => {
+        if (esCompraMismoQueEmision) {
+            // Caso borde: solo cupones con fecha de pago > fecha compra/emisión
+            return fecha.getTime() > fechaCompraNormalizada.getTime();
+        } else {
+            // Caso normal: cupones con fecha de pago >= fecha compra
+            return fecha.getTime() >= fechaCompraNormalizada.getTime();
+        }
+    });
+    
+    // Si no hay cupones después de la fecha de compra, incluir el primer cupón posterior
+    if (fechasCuponesFiltradas.length === 0 && fechasCuponesSinDuplicados.length > 0) {
+        // Encontrar el primer cupón posterior a la fecha de compra
+        const cuponesPosteriores = fechasCuponesSinDuplicados.filter(f => f.getTime() > fechaCompraNormalizada.getTime());
+        if (cuponesPosteriores.length > 0) {
+            return [cuponesPosteriores[0]];
+        }
+        // Si no hay ninguno posterior, usar el más cercano
+        const cuponMasCercano = fechasCuponesSinDuplicados.reduce((masCercano, fecha) => {
+            const diffActual = Math.abs(fecha.getTime() - fechaCompraNormalizada.getTime());
+            const diffMasCercano = Math.abs(masCercano.getTime() - fechaCompraNormalizada.getTime());
+            return diffActual < diffMasCercano ? fecha : masCercano;
+        });
+        return [cuponMasCercano];
+    }
+    
+    return fechasCuponesFiltradas;
 }
 
 /**
  * Calcular fecha fin de devengamiento basado en fechaPrimeraRenta y periodicidad
  * @param {Date} fechaPago - Fecha de pago del cupón
- * @param {string} fechaPrimeraRenta - Fecha de primera renta en formato DD/MM
+ * @param {string} fechaPrimeraRenta - Día de pago (1-31)
  * @param {string} periodicidad - Periodicidad: 'mensual', 'bimestral', 'trimestral', 'semestral', 'anual'
  * @param {number} diasRestar - Días a restar (normalmente negativo, ej: -1)
  * @returns {Date} Fecha fin de devengamiento
  */
 function calcularFechaFinDev(fechaPago, fechaPrimeraRenta, periodicidad, diasRestar) {
-    // Parsear fecha de primera renta (DD/MM)
-    const partes = fechaPrimeraRenta.split('/');
-    if (partes.length !== 2) {
-        // Fallback: usar fechaPago + diasRestar
-        const fecha = new Date(fechaPago);
-        fecha.setDate(fecha.getDate() + diasRestar);
-        return fecha;
-    }
-    
-    const diaPago = parseInt(partes[0], 10);
-    const mesPago = parseInt(partes[1], 10) - 1; // Los meses en JS son 0-11
-    
-    // Calcular meses según periodicidad
-    let mesesPorPeriodo;
-    switch (periodicidad.toLowerCase()) {
-        case 'mensual':
-            mesesPorPeriodo = 1;
-            break;
-        case 'bimestral':
-            mesesPorPeriodo = 2;
-            break;
-        case 'trimestral':
-            mesesPorPeriodo = 3;
-            break;
-        case 'semestral':
-            mesesPorPeriodo = 6;
-            break;
-        case 'anual':
-            mesesPorPeriodo = 12;
-            break;
-        default:
-            mesesPorPeriodo = 1;
-    }
-    
-    // Calcular la fecha base: mismo día y mes que fechaPrimeraRenta, pero ajustado al período del cupón
-    // Para cada cupón, la fecha base es fechaPrimeraRenta ajustada al período correspondiente
-    const añoPago = fechaPago.getFullYear();
-    const mesPagoActual = fechaPago.getMonth();
-    
-    // Crear fecha base con el día y mes de fechaPrimeraRenta en el año del cupón
-    let fechaBase = new Date(añoPago, mesPago, diaPago);
-    
-    // Si la fecha base es posterior a fechaPago, retroceder un período
-    // Esto asegura que la fecha base sea anterior o igual a fechaPago
-    if (fechaBase > fechaPago) {
-        fechaBase.setMonth(fechaBase.getMonth() - mesesPorPeriodo);
-    }
-    
-    // Aplicar días a restar (normalmente -1, que resta un día)
-    fechaBase.setDate(fechaBase.getDate() + diasRestar);
-    
-    return fechaBase;
+    const fecha = new Date(fechaPago);
+    const dias = parseInt(diasRestar, 10);
+    const diasAjuste = isNaN(dias) ? -1 : dias;
+    fecha.setDate(fecha.getDate() + diasAjuste);
+    return fecha;
 }
 
 /**

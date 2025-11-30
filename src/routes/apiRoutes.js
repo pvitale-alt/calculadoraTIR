@@ -221,6 +221,8 @@ router.get('/feriados/exportar', feriadosController.exportarCSVFeriados);
 
 // Guardar y cargar calculadoras
 router.post('/calculadoras/guardar', calculadorasController.guardarCalculadora);
+router.put('/calculadoras/:id', calculadorasController.actualizarCalculadora);
+router.delete('/calculadoras/:id', calculadorasController.eliminarCalculadora);
 router.get('/calculadoras', calculadorasController.obtenerCalculadoras);
 router.get('/calculadoras/:id', calculadorasController.cargarCalculadora);
 

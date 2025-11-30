@@ -88,13 +88,23 @@ function recalcularFlujosCupones(cupones = window.cuponesModule?.getCuponesData?
 
     const cantidadPartida = obtenerCantidadPartida();
     const precioCompra = obtenerPrecioCompra();
-    const coeficienteCERCompra = obtenerCoeficienteCERCompra();
+    const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
+    const coeficienteCERCompra = ajusteCER ? obtenerCoeficienteCERCompra() : 1;
 
     cupones.forEach(cupon => {
         let flujoCalculado = null;
 
         if (cupon.id === 'inversion') {
-            flujoCalculado = calcularFlujoInversion(cantidadPartida, precioCompra, coeficienteCERCompra);
+            // Con ajuste CER: cantidad * precio * coeficienteCERCompra
+            // Sin ajuste CER: cantidad * precio
+            if (ajusteCER) {
+                flujoCalculado = calcularFlujoInversion(cantidadPartida, precioCompra, coeficienteCERCompra);
+            } else {
+                // Sin ajuste CER: simplemente cantidad * precio (negativo porque es inversión)
+                if (cantidadPartida !== null && precioCompra !== null) {
+                    flujoCalculado = -(cantidadPartida * precioCompra);
+                }
+            }
         } else {
             const amortizacionAjustada = normalizarNumeroDesdeInput(cupon.amortizAjustada);
             const rentaAjustada = normalizarNumeroDesdeInput(cupon.rentaAjustada);
@@ -135,6 +145,14 @@ function obtenerDecimalesAjustes() {
     if (!input) return 8; // Default: 8 decimales
     const valor = parseInt(input.value, 10);
     if (isNaN(valor) || valor < 0 || valor > 12) return 8;
+    return valor;
+}
+
+function obtenerDecimalesRentaTNA() {
+    const input = document.getElementById('decimalesRentaTNA');
+    if (!input) return 4; // Default: 4 decimales
+    const valor = parseInt(input.value, 10);
+    if (isNaN(valor) || valor < 0 || valor > 12) return 4;
     return valor;
 }
 
@@ -241,8 +259,8 @@ function calcularPagosActualizados(cupon, factorActualizacion) {
 function recalcularValoresDerivados(cupones, opciones = {}) {
     if (!Array.isArray(cupones) || cupones.length === 0) return;
     
-    const rentaTNAValor = normalizarNumeroDesdeInput(opciones.rentaTNA ?? document.getElementById('rentaTNA')?.value);
-    const coeficienteCEREmision = obtenerCoeficienteCEREmision() || 1;
+    const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
+    const coeficienteCEREmision = ajusteCER ? (obtenerCoeficienteCEREmision() || 1) : 1;
     const decimalesAjustes = obtenerDecimalesAjustes();
     
     let residual = 100;
@@ -255,26 +273,34 @@ function recalcularValoresDerivados(cupones, opciones = {}) {
         const residualActual = Math.max(0, residual);
         actualizarCampoCupon(cupon, 'valorResidual', formatearNumero(residualActual, 4));
         
-        const amortizAjustada = amortizacionActual * coeficienteCEREmision;
+        // Amortización ajustada: con ajuste CER se multiplica por coeficiente, sin ajuste CER es igual a amortización
+        const amortizAjustada = ajusteCER ? (amortizacionActual * coeficienteCEREmision) : amortizacionActual;
         actualizarCampoCupon(cupon, 'amortizAjustada', formatearNumero(amortizAjustada, decimalesAjustes));
+        
+        // Renta TNA: usar la del cupón si existe, sino la del formulario
+        const rentaTNACupon = normalizarNumeroDesdeInput(cupon.rentaTNA);
+        const rentaTNAValor = rentaTNACupon !== null ? rentaTNACupon : normalizarNumeroDesdeInput(opciones.rentaTNA ?? document.getElementById('rentaTNA')?.value);
         
         const dayCount = normalizarNumeroDesdeInput(cupon.dayCountFactor) || 0;
         const rentaNominal = (rentaTNAValor || 0) * dayCount;
         actualizarCampoCupon(cupon, 'rentaNominal', formatearNumero(rentaNominal, 5));
         
         const residualFactor = residualActual / 100;
-        const rentaAjustada = rentaNominal * coeficienteCEREmision * residualFactor;
+        // Renta ajustada: con ajuste CER se multiplica por coeficiente, sin ajuste CER es igual a renta nominal * residualFactor
+        const rentaAjustada = ajusteCER ? (rentaNominal * coeficienteCEREmision * residualFactor) : (rentaNominal * residualFactor);
         actualizarCampoCupon(cupon, 'rentaAjustada', formatearNumero(rentaAjustada, decimalesAjustes));
         
         // Calcular factor de actualización
         const factorActualizacion = calcularFactorActualizacion(cupon);
         if (factorActualizacion !== null) {
-            actualizarCampoCupon(cupon, 'factorActualiz', formatearNumero(factorActualizacion, decimalesAjustes));
+            const factorFormateado = formatearNumero(factorActualizacion, decimalesAjustes);
+            actualizarCampoCupon(cupon, 'factorActualiz', factorFormateado);
             
             // Calcular pagos actualizados
             const pagosActualizados = calcularPagosActualizados(cupon, factorActualizacion);
             if (pagosActualizados !== null) {
-                actualizarCampoCupon(cupon, 'pagosActualiz', formatearNumero(pagosActualizados, decimalesAjustes));
+                const pagosFormateados = formatearNumero(pagosActualizados, decimalesAjustes);
+                actualizarCampoCupon(cupon, 'pagosActualiz', pagosFormateados);
             } else {
                 actualizarCampoCupon(cupon, 'pagosActualiz', '');
             }
@@ -339,6 +365,74 @@ window.cuponesCalculos = {
     calcularDayCountFactor,
     calcularRentaNominal,
     calcularTIR,
-    recalcularFlujos: recalcularFlujosCupones
+    recalcularFlujos: recalcularFlujosCupones,
+    calcularPromedioTAMAR: calcularPromedioTAMARParaCupon,
+    obtenerDecimalesRentaTNA
 };
+
+/**
+ * Calcular promedio de TAMAR para un cupón entre inicio y final intervalo
+ */
+async function calcularPromedioTAMARParaCupon(cupon) {
+    if (!cupon.inicioIntervalo || !cupon.finalIntervalo) {
+        return null;
+    }
+
+    try {
+        // Convertir fechas de DD/MM/AAAA a YYYY-MM-DD
+        let fechaDesde = cupon.inicioIntervalo;
+        let fechaHasta = cupon.finalIntervalo;
+        
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaDesde)) {
+            fechaDesde = convertirFechaDDMMAAAAaYYYYMMDD(fechaDesde);
+        }
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaHasta)) {
+            fechaHasta = convertirFechaDDMMAAAAaYYYYMMDD(fechaHasta);
+        }
+
+        // Obtener valores TAMAR desde la API
+        const response = await fetch(`/api/tamar?desde=${fechaDesde}&hasta=${fechaHasta}`);
+        const result = await response.json();
+
+        if (!result.success || !result.datos || result.datos.length === 0) {
+            return null;
+        }
+
+        // Calcular promedio aritmético
+        const valores = result.datos.map(item => parseFloat(item.valor || 0)).filter(v => !isNaN(v) && v > 0);
+        
+        if (valores.length === 0) {
+            return null;
+        }
+
+        const suma = valores.reduce((acc, val) => acc + val, 0);
+        const promedio = suma / valores.length;
+
+        // Actualizar el campo promedioTasa en el cupón
+        actualizarCampoCupon(cupon, 'promedioTasa', formatearNumero(promedio, 4));
+
+        // Obtener spread y calcular Renta TNA
+        const spread = normalizarNumeroDesdeInput(document.getElementById('spread')?.value) || 0;
+        const rentaTNA = promedio + spread;
+        
+        // Actualizar Renta TNA del cupón
+        const decimalesRentaTNA = obtenerDecimalesRentaTNA();
+        actualizarCampoCupon(cupon, 'rentaTNA', formatearNumero(rentaTNA, decimalesRentaTNA));
+        
+        // Recalcular valores derivados (renta nominal, renta ajustada, etc.)
+        const cupones = window.cuponesModule?.getCuponesData?.() || [];
+        if (cupones.length > 0) {
+            recalcularValoresDerivados(cupones);
+        }
+        
+        // Recalcular flujos
+        recalcularFlujosCupones(cupones);
+
+        return promedio;
+
+    } catch (error) {
+        console.error('Error al calcular promedio TAMAR:', error);
+        return null;
+    }
+}
 

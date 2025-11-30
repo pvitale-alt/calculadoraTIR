@@ -279,8 +279,38 @@ async function actualizarCoeficientesCER() {
     }
     
     const fechaValuacionStr = fechaValuacionInput.value;
-    const fechaEmisionStr = fechaEmisionInput?.value || '';
-    const fechaCompraStr = fechaCompraInput?.value || '';
+    
+    // Asegurar que fechaEmisionStr sea un string válido
+    // Convertir a string si es necesario (por si acaso hay algún objeto o valor no string)
+    let fechaEmisionStr = '';
+    if (fechaEmisionInput) {
+        const valor = fechaEmisionInput.value;
+        if (valor !== null && valor !== undefined) {
+            if (typeof valor === 'string') {
+                fechaEmisionStr = valor;
+            } else if (typeof valor === 'object') {
+                // Si es un objeto, intentar obtener el valor de alguna propiedad común
+                console.warn('[actualizarCoeficientesCER] fechaEmisionInput.value es un objeto:', valor);
+                fechaEmisionStr = String(valor);
+            } else {
+                fechaEmisionStr = String(valor);
+            }
+        }
+    }
+    
+    // Asegurar que fechaCompraStr sea un string válido
+    let fechaCompraStr = '';
+    if (fechaCompraInput) {
+        const valor = fechaCompraInput.value;
+        if (valor !== null && valor !== undefined) {
+            if (typeof valor === 'string') {
+                fechaCompraStr = valor;
+            } else {
+                fechaCompraStr = String(valor);
+            }
+        }
+    }
+    
     const intervaloFin = parseInt(intervaloFinInput.value || '0', 10);
     
     // Resetear valores
@@ -359,13 +389,24 @@ async function actualizarCoeficientesCER() {
                 }
             }
         } else {
-            console.warn('[actualizarCoeficientesCER] fechaEmisionStr no válida:', {
-                fechaEmisionStr,
-                length: fechaEmisionStr?.length
-            });
-            coefCEREmisionSpan.textContent = 'N/A';
+            // fechaEmisionStr no es válida (no es string o no tiene 10 caracteres)
+            // Solo loguear si hay un valor parcial (no loguear si está vacío, que es normal)
+            if (fechaEmisionStr && fechaEmisionStr.length > 0) {
+                if (typeof fechaEmisionStr !== 'string') {
+                    console.warn('[actualizarCoeficientesCER] fechaEmisionStr no es un string:', {
+                        type: typeof fechaEmisionStr,
+                        value: fechaEmisionStr,
+                        stringified: String(fechaEmisionStr)
+                    });
+                } else if (fechaEmisionStr.length !== 10) {
+                    // Solo loguear si hay un valor parcial (usuario está escribiendo)
+                    // console.log('[actualizarCoeficientesCER] fechaEmisionStr incompleta:', fechaEmisionStr.length);
+                }
+            }
+            // No mostrar N/A si el campo está vacío, solo mostrar el guión
+            coefCEREmisionSpan.textContent = fechaEmisionStr && fechaEmisionStr.length > 0 ? 'N/A' : '-';
             if (cerEmisionValorSpan) {
-                cerEmisionValorSpan.textContent = 'N/A';
+                cerEmisionValorSpan.textContent = fechaEmisionStr && fechaEmisionStr.length > 0 ? 'N/A' : '-';
             }
         }
         

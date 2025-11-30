@@ -169,7 +169,7 @@ function abrirDatePicker(inputId) {
         popup = document.createElement('div');
         popup.id = popupId;
         popup.className = 'date-picker-popup';
-        input.parentElement.appendChild(popup);
+        document.body.appendChild(popup);
     }
     
     // Inicializar estado
@@ -201,6 +201,36 @@ function abrirDatePicker(inputId) {
     
     // Siempre mostrar el popup y renderizar
     renderizarDatePicker(popup);
+    
+    // Calcular posición del popup basándose en la posición del input
+    const inputRect = input.getBoundingClientRect();
+    const popupWidth = 280; // min-width del popup
+    const popupHeight = 320; // altura aproximada del popup
+    
+    let top = inputRect.bottom + 4;
+    let left = inputRect.left;
+    
+    // Ajustar si el popup se sale por la derecha
+    if (left + popupWidth > window.innerWidth) {
+        left = window.innerWidth - popupWidth - 10;
+    }
+    
+    // Ajustar si el popup se sale por abajo
+    if (top + popupHeight > window.innerHeight) {
+        top = inputRect.top - popupHeight - 4;
+        // Si aún se sale por arriba, posicionar desde arriba
+        if (top < 0) {
+            top = 10;
+        }
+    }
+    
+    // Ajustar si el popup se sale por la izquierda
+    if (left < 0) {
+        left = 10;
+    }
+    
+    popup.style.top = `${top}px`;
+    popup.style.left = `${left}px`;
     popup.style.display = 'block';
     
     // Registrar listener para cerrar al hacer clic fuera (solo una vez)

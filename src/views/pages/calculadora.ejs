@@ -33,6 +33,10 @@
                                 <label class="form-label" style="font-size: 14px; margin: 0; white-space: nowrap;">CER Valuación:</label>
                                 <input type="text" class="input input-sm" id="cerValuacion" readonly style="width: 120px; background-color: #f1f3f4; cursor: not-allowed;" />
                             </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label for="decimalesRentaTNA" class="form-label" style="font-size: 14px; margin: 0; white-space: nowrap;">Decimales Renta TNA:</label>
+                                <input type="number" id="decimalesRentaTNA" min="0" max="12" value="4" style="width: 60px; padding: 4px 8px; border: 1px solid #dadce0; border-radius: 4px; font-size: 14px; text-align: center;" onchange="actualizarDecimalesRentaTNA()" />
+                            </div>
                         </div>
                     </div>
                     <div id="coeficientesCERContainer" style="display: none; align-items: center; gap: 12px; flex-wrap: wrap;">
@@ -75,26 +79,27 @@
                             <table class="cupones-table" id="tablaCupones">
                                 <thead>
                                     <tr>
-                                        <th style="width: 50px; min-width: 50px;">Cupón</th>
-                                        <th>Fecha Inicio</th>
-                                        <th>Fecha Fin Dev</th>
-                                        <th>Fecha Liquid.</th>
-                                        <th>Inicio Intervalo</th>
-                                        <th>Final Intervalo</th>
-                                        <th>Valor CER Inicio</th>
-                                        <th>Valor CER Final</th>
-                                        <th>Day Count Factor</th>
+                                        <th style="min-width: 50px;">Cupón</th>
+                                        <th>Fecha<br>Inicio</th>
+                                        <th>Fecha Fin<br>Dev</th>
+                                        <th>Fecha<br>Liquid.</th>
+                                        <th>Inicio<br>Intervalo</th>
+                                        <th>Final<br>Intervalo</th>
+                                        <th class="columna-cer-inicio" style="display: none;">Valor CER<br>Inicio</th>
+                                        <th class="columna-cer-final" style="display: none;">Valor CER<br>Final</th>
+                                        <th class="columna-promedio-tasa" style="display: none;">Promedio<br>tasa</th>
+                                        <th>Day Count<br>Factor</th>
                                         <th>Amortiz.</th>
-                                        <th>Valor Residual</th>
-                                        <th>Amortiz. Ajustada</th>
-                                        <th>Renta Nominal</th>
-                                        <th>Renta TNA</th>
-                                        <th>Renta Ajustada</th>
-                                        <th>Factor Actualiz.</th>
-                                        <th>Pagos Actualiz.</th>
+                                        <th>Valor<br>Residual</th>
+                                        <th>Amortiz.<br>Ajustada</th>
+                                        <th>Renta<br>Nominal</th>
+                                        <th>Renta<br>TNA</th>
+                                        <th>Renta<br>Ajustada</th>
+                                        <th>Factor<br>Actualiz.</th>
+                                        <th>Pagos<br>Actualiz.</th>
                                         <th>Flujos</th>
-                                        <th>Flujos Desc.</th>
-                                        <th style="width: 80px; min-width: 80px;">Acciones</th>
+                                        <th>Flujos<br>Desc.</th>
+                                        <th style="min-width: 60px;">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="cuponesBody">
@@ -102,15 +107,11 @@
                                 </tbody>
                             </table>
                         </div>
-                        <div style="display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); margin-top: 16px; padding-top: 16px;">
-                            <div style="display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 13px;">
-                                <span>Sumatoria flujos descontados:</span>
-                                <strong id="sumatoriaFlujosDesc" style="font-size: 14px; color: var(--text-primary);">0.00000000</strong>
-                            </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 16px; justify-content: flex-end; align-items: center; border-top: 1px solid var(--border-color); margin-top: 16px; padding-top: 16px;">
                             <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 16px;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
                                     <span style="font-size: 14px; color: var(--text-secondary);">TIR:</span>
-                                    <div id="resultadoTIR" style="font-size: 22px; font-weight: 600; color: var(--primary-color); min-width: 100px; text-align: right;">-</div>
+                                    <div id="resultadoTIR" style="font-size: 22px; font-weight: 600; color: #1e8e3e; min-width: 100px; text-align: right;">-</div>
                                 </div>
                                 <button class="btn btn-primary" id="btnCalcularTIR" onclick="calcularTIR()" style="display: inline-flex; gap: 8px; align-items: center; min-width: 150px;">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -193,8 +194,8 @@
                                     <div class="form-group">
                                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                                             <div>
-                                                <label class="form-label" style="font-size: 13px; margin-bottom: 4px;">Renta TNA</label>
-                                                <input type="text" class="input input-sm" id="rentaTNA" />
+                                                <label class="form-label" style="font-size: 13px; margin-bottom: 4px;">% tasa fija</label>
+                                                <input type="text" class="input input-sm" id="rentaTNA" disabled style="background-color: #f1f3f4; cursor: not-allowed;" />
                                             </div>
                                             <div>
                                                 <label class="form-label" style="font-size: 13px; margin-bottom: 4px;">Spread</label>
@@ -235,22 +236,11 @@
                                     <div class="form-group">
                                         <div style="display: flex; gap: 8px; align-items: flex-end;">
                                             <div style="flex: 1;">
-                                                <label class="form-label" style="font-size: 13px; margin-bottom: 4px;">Fecha de Pago</label>
-                                                <div class="date-input-wrapper">
-                                                    <input type="text" class="input input-sm date-input" id="fechaPrimeraRenta" placeholder="DD/MM" maxlength="5" />
-                                                    <button type="button" class="date-picker-icon-btn" onclick="abrirDatePicker('fechaPrimeraRenta')" title="Seleccionar fecha">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                                            <line x1="16" y1="2" x2="16" y2="6"></line>
-                                                            <line x1="8" y1="2" x2="8" y2="6"></line>
-                                                            <line x1="3" y1="10" x2="21" y2="10"></line>
-                                                        </svg>
-                                                    </button>
-                                                    <div id="datePickerFechaPrimeraRenta" class="date-picker-popup" style="display: none;"></div>
-                                                </div>
+                                                <label class="form-label" style="font-size: 13px; margin-bottom: 4px;">Fecha vencimiento</label>
+                                                <input type="number" class="input input-sm" id="fechaPrimeraRenta" placeholder="Ej: 27" min="1" max="31" />
                                             </div>
                                             <div style="flex: 0 0 100px;">
-                                                <label class="form-label" style="font-size: 13px; margin-bottom: 4px;">Días a restar</label>
+                                                <label class="form-label" style="font-size: 13px; margin-bottom: 4px;">Fin Dev.</label>
                                                 <input type="number" class="input input-sm" id="diasRestarFechaFinDev" value="-1" step="1" />
                                             </div>
                                         </div>

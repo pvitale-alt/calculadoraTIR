@@ -353,6 +353,13 @@ async function calcularTIR() {
             const cupones = window.cuponesModule?.getCuponesData?.() || [];
             window.cuponesCalculos.recalcularValoresDerivados(cupones);
         }
+        
+        // Renderizar la tabla para mostrar los valores actualizados (después de todos los recálculos)
+        setTimeout(() => {
+            if (window.cuponesModule && typeof window.cuponesModule.renderizarCupones === 'function') {
+                window.cuponesModule.renderizarCupones();
+            }
+        }, 50);
 
         if (typeof showSuccess === 'function') {
             showSuccess('TIR calculada: ' + (tir * 100).toFixed(8) + '%');
