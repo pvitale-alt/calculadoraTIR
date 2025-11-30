@@ -501,6 +501,17 @@ async function seleccionarCalculadora(id) {
         const cache = calculadorasDetalleCache.get(id);
         const ahora = Date.now();
         if (cache && (ahora - cache.time) < CALCULADORAS_CACHE_MS) {
+            // Ocultar tabla de cupones existente al cargar nueva calculadora
+            const tablaCuponesContainer = document.getElementById('tablaCuponesContainer');
+            if (tablaCuponesContainer) {
+                tablaCuponesContainer.style.display = 'none';
+            }
+            
+            // Limpiar cupones existentes
+            if (window.cuponesModule && window.cuponesModule.setCuponesData) {
+                window.cuponesModule.setCuponesData([]);
+            }
+            
             aplicarCalculadoraEnFormulario(cache.data);
             cerrarModalCalculadoras();
             showSuccess('Calculadora cargada exitosamente');
@@ -517,6 +528,17 @@ async function seleccionarCalculadora(id) {
 
         const calculadora = result.calculadora;
         calculadorasDetalleCache.set(id, { data: calculadora, time: Date.now() });
+        
+        // Ocultar tabla de cupones existente al cargar nueva calculadora
+        const tablaCuponesContainer = document.getElementById('tablaCuponesContainer');
+        if (tablaCuponesContainer) {
+            tablaCuponesContainer.style.display = 'none';
+        }
+        
+        // Limpiar cupones existentes
+        if (window.cuponesModule && window.cuponesModule.setCuponesData) {
+            window.cuponesModule.setCuponesData([]);
+        }
         
         aplicarCalculadoraEnFormulario(calculadora);
         cerrarModalCalculadoras();

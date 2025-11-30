@@ -100,22 +100,28 @@
                     </div>
                 </div>
                 
-                <div id="tamarTableContainer" style="display: none; margin: 0 auto; max-width: 50%;">
-                    <!-- Botón Exportar CSV -->
-                    <div id="btnExportarCSVTAMARContainer" style="display: none; margin-bottom: 16px; text-align: right;">
-                        <button class="btn btn-primary" onclick="abrirModalExportarCSV('tamar')" style="display: inline-flex; align-items: center; gap: 8px;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-                            </svg>
-                            <span>Exportar CSV</span>
-                        </button>
+                <div id="tamarTableContainer" style="display: none; margin: 0 auto; width: 100%; max-width: 600px;">
+                    <!-- Botón Exportar CSV y Promedio -->
+                    <div id="btnExportarCSVTAMARContainer" style="display: none; margin-bottom: 16px; width: 100%;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 24px; width: 100%;">
+                            <div id="promedioTAMARDisplay" style="font-size: 16px; font-weight: 600;">
+                                <span style="color: var(--text-secondary);">Promedio:</span>
+                                <span id="promedioTAMARValor" style="color: var(--primary-color); margin-left: 8px;">-</span>
+                            </div>
+                            <button class="btn btn-primary" onclick="abrirModalExportarCSV('tamar')" style="display: inline-flex; align-items: center; gap: 8px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                                </svg>
+                                <span>Exportar CSV</span>
+                            </button>
+                        </div>
                     </div>
                     <div style="overflow-x: auto;">
                         <table class="cashflow-table" id="tamarTable">
                             <thead>
                                 <tr>
-                                    <th>Fecha</th>
-                                    <th>Valor TAMAR</th>
+                                    <th style="width: 120px !important; max-width: 120px !important; min-width: 120px !important; text-align: center !important;">Fecha</th>
+                                    <th style="width: 120px !important; max-width: 120px !important; min-width: 120px !important; text-align: center !important;">Valor TAMAR</th>
                                 </tr>
                             </thead>
                             <tbody id="tamarTableBody">

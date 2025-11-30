@@ -142,8 +142,8 @@ function generarTablaBADLAR(datos, soloNuevos = false) {
             
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${formatearFechaMostrarBADLAR(fecha)}</td>
-                <td style="text-align: right;">${formatearNumeroBADLAR(valor)}</td>
+                <td style="width: 120px !important; max-width: 120px !important; text-align: center !important;">${formatearFechaMostrarBADLAR(fecha)}</td>
+                <td style="text-align: center !important; width: 120px !important; max-width: 120px !important;">${formatearNumeroBADLAR(valor)}</td>
             `;
             tbody.appendChild(row);
         });
@@ -155,10 +155,16 @@ function generarTablaBADLAR(datos, soloNuevos = false) {
             rowPromedio.style.background = '#f8f9fa';
             rowPromedio.style.fontWeight = '600';
             rowPromedio.innerHTML = `
-                <td style="font-weight: 600; color: var(--text-primary);">Promedio</td>
-                <td style="text-align: right; font-weight: 600; color: var(--primary-color);">${formatearNumeroBADLAR(promedio)}</td>
+                <td style="font-weight: 600; color: var(--text-primary); width: 120px !important; max-width: 120px !important; text-align: center !important;">Promedio</td>
+                <td style="text-align: center !important; font-weight: 600; color: var(--primary-color); width: 120px !important; max-width: 120px !important;">${formatearNumeroBADLAR(promedio)}</td>
             `;
             tbody.appendChild(rowPromedio);
+            
+            // Actualizar el promedio en el contenedor del botón
+            const promedioDisplay = document.getElementById('promedioBADLARValor');
+            if (promedioDisplay) {
+                promedioDisplay.textContent = formatearNumeroBADLAR(promedio);
+            }
         }
         
         return datosOrdenados.length;
@@ -187,16 +193,24 @@ function abrirModalIntervalosBADLAR() {
         const fechaDesdeInput = document.getElementById('fechaDesdeBADLAR');
         const fechaHastaInput = document.getElementById('fechaHastaBADLAR');
         
-        if (fechaDesdeInput && !fechaDesdeInput.value) {
-            const hoy = new Date();
-            const dia15 = new Date(hoy.getFullYear(), hoy.getMonth(), 15);
-            fechaDesdeInput.value = convertirFechaYYYYMMDDaDDMMAAAA_BADLAR(formatearFechaInput(dia15));
+        // Aplicar máscaras si no están aplicadas
+        if (fechaDesdeInput) {
+            aplicarMascaraFechaBADLAR(fechaDesdeInput);
+        }
+        if (fechaHastaInput) {
+            aplicarMascaraFechaBADLAR(fechaHastaInput);
         }
         
-        if (fechaHastaInput && !fechaHastaInput.value) {
-            const hoy = new Date();
-            const dia15Siguiente = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 15);
-            fechaHastaInput.value = convertirFechaYYYYMMDDaDDMMAAAA_BADLAR(formatearFechaInput(dia15Siguiente));
+        // Establecer fecha de hoy por defecto
+        const hoy = new Date();
+        const fechaHoyStr = convertirFechaYYYYMMDDaDDMMAAAA_BADLAR(formatearFechaInput(hoy));
+        
+        if (fechaDesdeInput) {
+            fechaDesdeInput.value = fechaHoyStr;
+        }
+        
+        if (fechaHastaInput) {
+            fechaHastaInput.value = fechaHoyStr;
         }
     }
 }
@@ -208,6 +222,11 @@ function cerrarModalIntervalosBADLAR() {
         modal.style.display = 'none';
     }
 }
+
+// Exportar funciones globalmente para que estén disponibles en el onclick del HTML
+window.abrirModalIntervalosBADLAR = abrirModalIntervalosBADLAR;
+window.cerrarModalIntervalosBADLAR = cerrarModalIntervalosBADLAR;
+window.confirmarCargarBADLAR = confirmarCargarBADLAR;
 
 // Confirmar y cargar BADLAR
 async function confirmarCargarBADLAR() {
@@ -445,30 +464,57 @@ document.addEventListener('DOMContentLoaded', () => {
         aplicarMascaraFechaBADLAR(fechaHastaInput);
     }
     
-    // Verificar si hay fechas guardadas en sessionStorage para auto-filtrar
-    const fechaDesde = sessionStorage.getItem('badlar_fechaDesde');
-    const fechaHasta = sessionStorage.getItem('badlar_fechaHasta');
-    const autoFiltrar = sessionStorage.getItem('badlar_autoFiltrar');
+    // Leer parámetros de URL (prioridad sobre sessionStorage)
+    const urlParams = new URLSearchParams(window.location.search);
+    const fechaDesdeURL = urlParams.get('desde');
+    const fechaHastaURL = urlParams.get('hasta');
     
-    if (fechaDesde && fechaHasta && autoFiltrar === 'true') {
-        const buscarDesdeInput = document.getElementById('buscarDesdeBADLAR');
-        const buscarHastaInput = document.getElementById('buscarHastaBADLAR');
+    const buscarDesdeInput = document.getElementById('buscarDesdeBADLAR');
+    const buscarHastaInput = document.getElementById('buscarHastaBADLAR');
+    
+    if (buscarDesdeInput && buscarHastaInput) {
+        let fechaDesde = null;
+        let fechaHasta = null;
+        let autoFiltrar = false;
         
-        if (buscarDesdeInput && buscarHastaInput) {
+        // Prioridad 1: Parámetros de URL
+        if (fechaDesdeURL && fechaHastaURL) {
+            // Las fechas vienen en formato DD-MM-AAAA desde la URL
+            fechaDesde = fechaDesdeURL;
+            fechaHasta = fechaHastaURL;
+            autoFiltrar = true;
+            
+            // Limpiar parámetros de URL después de leerlos
+            const nuevaURL = window.location.pathname;
+            window.history.replaceState({}, document.title, nuevaURL);
+        } 
+        // Prioridad 2: sessionStorage
+        else {
+            fechaDesde = sessionStorage.getItem('badlar_fechaDesde');
+            fechaHasta = sessionStorage.getItem('badlar_fechaHasta');
+            autoFiltrar = sessionStorage.getItem('badlar_autoFiltrar') === 'true';
+            
+            if (fechaDesde && fechaHasta && autoFiltrar) {
+                // Limpiar sessionStorage
+                sessionStorage.removeItem('badlar_fechaDesde');
+                sessionStorage.removeItem('badlar_fechaHasta');
+                sessionStorage.removeItem('badlar_autoFiltrar');
+            }
+        }
+        
+        if (fechaDesde && fechaHasta && autoFiltrar) {
             buscarDesdeInput.value = fechaDesde;
             buscarHastaInput.value = fechaHasta;
             
-            // Limpiar sessionStorage
-            sessionStorage.removeItem('badlar_fechaDesde');
-            sessionStorage.removeItem('badlar_fechaHasta');
-            sessionStorage.removeItem('badlar_autoFiltrar');
-            
             // Ejecutar el filtro automáticamente después de un pequeño delay
+            // Aumentar el delay para asegurar que los inputs estén listos
             setTimeout(() => {
                 if (typeof filtrarBADLARPorIntervalo === 'function') {
                     filtrarBADLARPorIntervalo();
+                } else {
+                    console.warn('[BADLAR] filtrarBADLARPorIntervalo no está disponible');
                 }
-            }, 300);
+            }, 500);
         }
     }
     
@@ -481,9 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    const buscarDesdeInput = document.getElementById('buscarDesdeBADLAR');
-    const buscarHastaInput = document.getElementById('buscarHastaBADLAR');
-    
+    // Aplicar máscaras a los inputs de búsqueda (ya declarados arriba)
     if (buscarDesdeInput) {
         aplicarMascaraFechaBADLAR(buscarDesdeInput);
     }
@@ -494,7 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Limpiar datos filtrados si no hay auto-filtrar
     // Solo mostrar tabla cuando se hace una búsqueda explícita
-    if (!fechaDesde || !fechaHasta || autoFiltrar !== 'true') {
+    if (!fechaDesde || !fechaHasta || autoFiltrar !== true) {
         window.badlarDatosFiltrados = [];
         const tableContainer = document.getElementById('badlarTableContainer');
         if (tableContainer) {

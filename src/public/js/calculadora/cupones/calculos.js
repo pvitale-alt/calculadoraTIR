@@ -370,6 +370,40 @@ window.cuponesCalculos = {
     obtenerDecimalesRentaTNA
 };
 
+// Caché para consultas TAMAR - evita llamadas repetidas a la API
+const tamarCache = new Map();
+const TAMAR_CACHE_MS = 5 * 60 * 1000; // 5 minutos de caché
+
+/**
+ * Obtener datos TAMAR con caché
+ */
+async function obtenerTAMARConCache(fechaDesde, fechaHasta) {
+    const cacheKey = `${fechaDesde}_${fechaHasta}`;
+    const ahora = Date.now();
+    
+    // Verificar caché
+    const cached = tamarCache.get(cacheKey);
+    if (cached && (ahora - cached.time) < TAMAR_CACHE_MS) {
+        return cached.data;
+    }
+    
+    // Obtener valores TAMAR desde la API
+    const response = await fetch(`/api/tamar?desde=${fechaDesde}&hasta=${fechaHasta}`);
+    const result = await response.json();
+    
+    // Guardar en caché
+    tamarCache.set(cacheKey, { data: result, time: ahora });
+    
+    return result;
+}
+
+/**
+ * Limpiar caché de TAMAR (llamar cuando se cambian parámetros significativos)
+ */
+function limpiarCacheTAMAR() {
+    tamarCache.clear();
+}
+
 /**
  * Calcular promedio de TAMAR para un cupón entre inicio y final intervalo
  */
@@ -390,9 +424,8 @@ async function calcularPromedioTAMARParaCupon(cupon) {
             fechaHasta = convertirFechaDDMMAAAAaYYYYMMDD(fechaHasta);
         }
 
-        // Obtener valores TAMAR desde la API
-        const response = await fetch(`/api/tamar?desde=${fechaDesde}&hasta=${fechaHasta}`);
-        const result = await response.json();
+        // Obtener valores TAMAR con caché
+        const result = await obtenerTAMARConCache(fechaDesde, fechaHasta);
 
         if (!result.success || !result.datos || result.datos.length === 0) {
             return null;
@@ -418,15 +451,6 @@ async function calcularPromedioTAMARParaCupon(cupon) {
         // Actualizar Renta TNA del cupón
         const decimalesRentaTNA = obtenerDecimalesRentaTNA();
         actualizarCampoCupon(cupon, 'rentaTNA', formatearNumero(rentaTNA, decimalesRentaTNA));
-        
-        // Recalcular valores derivados (renta nominal, renta ajustada, etc.)
-        const cupones = window.cuponesModule?.getCuponesData?.() || [];
-        if (cupones.length > 0) {
-            recalcularValoresDerivados(cupones);
-        }
-        
-        // Recalcular flujos
-        recalcularFlujosCupones(cupones);
 
         return promedio;
 

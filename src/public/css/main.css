@@ -326,7 +326,7 @@ select.input-sm {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 9999;
+    z-index: 10010; /* Mayor que los modales (10000) para que aparezca por encima */
     min-width: 280px;
     padding: 12px;
 }
@@ -480,9 +480,16 @@ select.input-sm {
 
 /* Tablas de variables (CER, TAMAR, BADLAR) y feriados */
 .cashflow-table {
-    width: 100%;
+    width: 240px !important;
     border-collapse: collapse;
     font-size: 13px;
+    table-layout: fixed !important;
+}
+
+/* Tabla de Feriados - layout automático para que se ajuste al contenido */
+#feriadosTable {
+    width: auto !important;
+    table-layout: auto !important;
 }
 
 .cashflow-table th {
@@ -501,6 +508,36 @@ select.input-sm {
     padding: 4px 2px;
     border-bottom: 1px solid var(--border-color);
     text-align: center;
+}
+
+/* Reducir ancho de columna de valores para acercar a Fecha */
+.cashflow-table th:first-child,
+.cashflow-table td:first-child {
+    width: 120px !important;
+    max-width: 120px !important;
+    min-width: 120px !important;
+    padding-right: 4px !important;
+}
+
+/* Para tablas con 2 columnas (TAMAR, BADLAR, CER) - columna de valor fija */
+.cashflow-table:not(#feriadosTable) th:last-child,
+.cashflow-table:not(#feriadosTable) td:last-child {
+    width: 120px !important;
+    max-width: 120px !important;
+    min-width: 120px !important;
+    padding-left: 4px !important;
+    padding-right: 8px !important;
+    text-align: center !important;
+}
+
+/* Para tabla de Feriados - columna Nombre se expande automáticamente */
+#feriadosTable th:last-child,
+#feriadosTable td:last-child {
+    text-align: center !important;
+    width: auto !important;
+    min-width: 200px !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
 }
 
 /* Tabla de cupones */

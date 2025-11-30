@@ -481,8 +481,8 @@ function agregarFilaFeriados(item, tbody) {
     const nombre = item.nombre || '';
     
     row.innerHTML = `
-        <td>${formatearFechaMostrar(fecha)}</td>
-        <td>${nombre}</td>
+        <td style="width: 120px !important; max-width: 120px !important; min-width: 120px !important; text-align: center !important;">${formatearFechaMostrar(fecha)}</td>
+        <td style="text-align: center !important; white-space: normal !important; word-wrap: break-word !important;">${nombre}</td>
     `;
     
     // Insertar en orden ascendente
@@ -557,8 +557,8 @@ function generarTablaFeriados(datos, soloNuevos = false) {
             
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${fechaFormateada}</td>
-                <td>${nombre}</td>
+                <td style="width: 120px !important; max-width: 120px !important; min-width: 120px !important; text-align: center !important;">${fechaFormateada}</td>
+                <td style="text-align: center !important; white-space: normal !important; word-wrap: break-word !important;">${nombre}</td>
             `;
             tbody.appendChild(row);
         });

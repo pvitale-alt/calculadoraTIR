@@ -169,12 +169,9 @@ async function recalcularInicioIntervalo(cupon) {
         // Recalcular valorCERInicio (solo si hay ajuste CER)
         if (ajusteCER) {
             await recalcularValorCERInicio(cupon);
-        } else {
-            // Si no hay ajuste CER, recalcular promedio TAMAR
-            if (cupon.finalIntervalo && window.cuponesCalculos && typeof window.cuponesCalculos.calcularPromedioTAMAR === 'function') {
-                await window.cuponesCalculos.calcularPromedioTAMAR(cupon);
-            }
         }
+        // NOTA: El cálculo de promedio TAMAR para sin ajuste CER se hace en renderizarCupones
+        // para evitar llamadas duplicadas y mejorar el rendimiento
         
     } catch (error) {
         console.error('Error al recalcular inicioIntervalo:', error);
@@ -236,10 +233,8 @@ async function recalcularFinalIntervaloSinRecalculosAdicionales(cupon) {
             inputFinalIntervalo.value = finalIntervaloStr;
         }
         
-        // Recalcular promedio TAMAR sin disparar otros recálculos (solo si no hay ajuste CER)
-        if (!ajusteCER && cupon.inicioIntervalo && cupon.finalIntervalo && window.cuponesCalculos && typeof window.cuponesCalculos.calcularPromedioTAMAR === 'function') {
-            await window.cuponesCalculos.calcularPromedioTAMAR(cupon);
-        }
+        // NOTA: El cálculo de promedio TAMAR para sin ajuste CER se hace en renderizarCupones
+        // para evitar llamadas duplicadas y mejorar el rendimiento
         
     } catch (error) {
         console.error('Error al recalcular finalIntervalo:', error);
@@ -309,12 +304,9 @@ async function recalcularFinalIntervalo(cupon) {
         // Recalcular valorCERFinal solo si hay ajuste CER
         if (ajusteCER) {
             await recalcularValorCERFinal(cupon);
-        } else {
-            // Si no hay ajuste CER, recalcular promedio TAMAR
-            if (cupon.inicioIntervalo && cupon.finalIntervalo && window.cuponesCalculos && typeof window.cuponesCalculos.calcularPromedioTAMAR === 'function') {
-                await window.cuponesCalculos.calcularPromedioTAMAR(cupon);
-            }
         }
+        // NOTA: El cálculo de promedio TAMAR para sin ajuste CER se hace en renderizarCupones
+        // para evitar llamadas duplicadas y mejorar el rendimiento
         
         // NO actualizar estilos aquí para evitar recálculos que puedan afectar fechaInicio o fechaFinDev
         // Los estilos se actualizarán cuando sea necesario desde otros lugares

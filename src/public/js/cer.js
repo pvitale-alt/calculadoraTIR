@@ -261,8 +261,8 @@ function agregarFilaCER(item, tbody) {
     }
     
     row.innerHTML = `
-        <td>${formatearFechaMostrarCER(fecha)}</td>
-        <td style="text-align: right;">${formatearNumeroCER(valor)}</td>
+        <td style="width: 120px !important; max-width: 120px !important; text-align: center !important;">${formatearFechaMostrarCER(fecha)}</td>
+        <td style="text-align: center !important; width: 120px !important; max-width: 120px !important;">${formatearNumeroCER(valor)}</td>
     `;
     
     // Insertar en orden descendente (más reciente primero)
@@ -331,8 +331,8 @@ function generarTablaCER(datos, soloNuevos = false) {
             
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${formatearFechaMostrarCER(fecha)}</td>
-                <td style="text-align: right;">${formatearNumeroCER(valor)}</td>
+                <td style="width: 120px !important; max-width: 120px !important; text-align: center !important;">${formatearFechaMostrarCER(fecha)}</td>
+                <td style="text-align: center !important; width: 120px !important; max-width: 120px !important;">${formatearNumeroCER(valor)}</td>
             `;
             tbody.appendChild(row);
         });
@@ -373,20 +373,20 @@ function abrirModalIntervalosCER() {
     if (modal) {
         modal.style.display = 'flex';
         
-        // Inicializar fechas si no tienen valor
+        // Inicializar fechas con fecha de hoy por defecto
         const fechaDesdeInput = document.getElementById('fechaDesdeCER');
         const fechaHastaInput = document.getElementById('fechaHastaCER');
         
-        if (fechaDesdeInput && !fechaDesdeInput.value) {
-            const hoy = new Date();
-            const dia15 = new Date(hoy.getFullYear(), hoy.getMonth(), 15);
-            fechaDesdeInput.value = convertirFechaYYYYMMDDaDDMMAAAA_CER(formatearFechaInput(dia15));
+        // Establecer fecha de hoy por defecto
+        const hoy = new Date();
+        const fechaHoyStr = convertirFechaYYYYMMDDaDDMMAAAA_CER(formatearFechaInput(hoy));
+        
+        if (fechaDesdeInput) {
+            fechaDesdeInput.value = fechaHoyStr;
         }
         
-        if (fechaHastaInput && !fechaHastaInput.value) {
-            const hoy = new Date();
-            const dia15Siguiente = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 15);
-            fechaHastaInput.value = convertirFechaYYYYMMDDaDDMMAAAA_CER(formatearFechaInput(dia15Siguiente));
+        if (fechaHastaInput) {
+            fechaHastaInput.value = fechaHoyStr;
         }
     }
 }

@@ -226,14 +226,18 @@ async function actualizarCERValuacion() {
 }
 
 /**
- * Actualizar visibilidad de los coeficientes CER
- * Solo se muestran si hay cupones cargados Y ajusteCER está activado
+ * Actualizar visibilidad de los coeficientes CER y paneles según tipo de calculadora
+ * - Panel CER Valuación: solo si hay cupones Y ajusteCER está activado
+ * - Panel Decimales Renta TNA: solo si hay cupones Y ajusteCER NO está activado
+ * - Coeficientes CER: solo si hay cupones Y ajusteCER está activado
  */
 function actualizarVisibilidadCoeficientesCER() {
     const coeficientesContainer = document.getElementById('coeficientesCERContainer');
+    const panelCERValuacion = document.getElementById('panelCERValuacion');
+    const panelDecimalesRentaTNA = document.getElementById('panelDecimalesRentaTNA');
     const ajusteCERCheckbox = document.getElementById('ajusteCER');
     
-    if (!coeficientesContainer || !ajusteCERCheckbox) {
+    if (!ajusteCERCheckbox) {
         return;
     }
     
@@ -245,11 +249,31 @@ function actualizarVisibilidadCoeficientesCER() {
     // Verificar si ajusteCER está activado
     const ajusteCERActivo = ajusteCERCheckbox.checked;
     
-    // Mostrar solo si hay cupones Y ajusteCER está activado
-    if (tieneCupones && ajusteCERActivo) {
-        coeficientesContainer.style.display = 'flex';
-    } else {
-        coeficientesContainer.style.display = 'none';
+    // Panel Coeficientes CER: solo si hay cupones Y ajusteCER activado
+    if (coeficientesContainer) {
+        if (tieneCupones && ajusteCERActivo) {
+            coeficientesContainer.style.display = 'flex';
+        } else {
+            coeficientesContainer.style.display = 'none';
+        }
+    }
+    
+    // Panel CER Valuación: solo si hay cupones Y ajusteCER activado
+    if (panelCERValuacion) {
+        if (tieneCupones && ajusteCERActivo) {
+            panelCERValuacion.style.display = 'flex';
+        } else {
+            panelCERValuacion.style.display = 'none';
+        }
+    }
+    
+    // Panel Decimales Renta TNA: solo si hay cupones Y ajusteCER NO activado
+    if (panelDecimalesRentaTNA) {
+        if (tieneCupones && !ajusteCERActivo) {
+            panelDecimalesRentaTNA.style.display = 'flex';
+        } else {
+            panelDecimalesRentaTNA.style.display = 'none';
+        }
     }
 }
 

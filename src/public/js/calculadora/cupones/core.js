@@ -13,6 +13,136 @@ window.cuponesModule = window.cuponesModule || {};
 let cuponesData = [];
 let cuponCounter = 1;
 
+// Restaurar datos de cupones desde sessionStorage al cargar
+try {
+    const cuponesGuardados = sessionStorage.getItem('calculadora_cuponesData');
+    const counterGuardado = sessionStorage.getItem('calculadora_cuponCounter');
+    
+    if (cuponesGuardados) {
+        cuponesData = JSON.parse(cuponesGuardados);
+    }
+    if (counterGuardado) {
+        cuponCounter = parseInt(counterGuardado, 10) || 1;
+    }
+} catch (e) {
+    console.warn('[core.js] Error al restaurar cupones desde sessionStorage:', e);
+}
+
+// Función para restaurar el estado completo al cargar la página
+function restaurarEstadoCalculadora() {
+    try {
+        // Restaurar valores del formulario
+        const formState = sessionStorage.getItem('calculadora_formState');
+        if (formState) {
+            const state = JSON.parse(formState);
+            
+            // Restaurar cada campo del formulario
+            const campos = [
+                'ajusteCER', 'tasa', 'spread', 'fechaValuacion', 'fechaCompra', 'precioCompra',
+                'cantidadPartida', 'fechaEmision', 'fechaPrimeraRenta', 'fechaAmortizacion',
+                'porcentajeAmortizacion', 'periodicidad', 'intervaloInicio', 'intervaloFin',
+                'diasRestarFechaFinDev', 'tipoInteresDias', 'rentaTNA', 'decimalesAjustes',
+                'decimalesRentaTNA', 'coeficienteCEREmision', 'coeficienteCERCompra', 'cerValuacion'
+            ];
+            
+            campos.forEach(campo => {
+                const elemento = document.getElementById(campo);
+                if (elemento && state[campo] !== undefined) {
+                    if (elemento.type === 'checkbox') {
+                        elemento.checked = state[campo];
+                    } else {
+                        elemento.value = state[campo];
+                    }
+                }
+            });
+            
+            // Disparar eventos de cambio para actualizar la UI
+            const ajusteCEREl = document.getElementById('ajusteCER');
+            if (ajusteCEREl) {
+                ajusteCEREl.dispatchEvent(new Event('change'));
+            }
+            
+            const tasaEl = document.getElementById('tasa');
+            if (tasaEl) {
+                tasaEl.dispatchEvent(new Event('change'));
+            }
+        }
+        
+        // Si hay cupones guardados, mostrar la tabla y renderizar
+        const tablaVisible = sessionStorage.getItem('calculadora_tablaVisible');
+        if (cuponesData.length > 0 && tablaVisible === 'true') {
+            const container = document.getElementById('tablaCuponesContainer');
+            if (container) {
+                container.style.display = 'block';
+                // Renderizar con un pequeño delay para asegurar que el DOM esté listo
+                setTimeout(() => {
+                    renderizarCupones();
+                }, 100);
+            }
+        }
+    } catch (e) {
+        console.warn('[restaurarEstadoCalculadora] Error:', e);
+    }
+}
+
+// Función para guardar el estado del formulario
+function guardarEstadoFormulario() {
+    try {
+        const campos = [
+            'ajusteCER', 'tasa', 'spread', 'fechaValuacion', 'fechaCompra', 'precioCompra',
+            'cantidadPartida', 'fechaEmision', 'fechaPrimeraRenta', 'fechaAmortizacion',
+            'porcentajeAmortizacion', 'periodicidad', 'intervaloInicio', 'intervaloFin',
+            'diasRestarFechaFinDev', 'tipoInteresDias', 'rentaTNA', 'decimalesAjustes',
+            'decimalesRentaTNA', 'coeficienteCEREmision', 'coeficienteCERCompra', 'cerValuacion'
+        ];
+        
+        const state = {};
+        campos.forEach(campo => {
+            const elemento = document.getElementById(campo);
+            if (elemento) {
+                if (elemento.type === 'checkbox') {
+                    state[campo] = elemento.checked;
+                } else {
+                    state[campo] = elemento.value;
+                }
+            }
+        });
+        
+        sessionStorage.setItem('calculadora_formState', JSON.stringify(state));
+    } catch (e) {
+        console.warn('[guardarEstadoFormulario] Error:', e);
+    }
+}
+
+// Ejecutar restauración cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+    // Pequeño delay para asegurar que todos los scripts estén cargados
+    setTimeout(restaurarEstadoCalculadora, 200);
+    
+    // Agregar listeners para guardar estado del formulario automáticamente
+    setTimeout(() => {
+        const camposAEscuchar = [
+            'ajusteCER', 'tasa', 'spread', 'fechaValuacion', 'fechaCompra', 'precioCompra',
+            'cantidadPartida', 'fechaEmision', 'fechaPrimeraRenta', 'fechaAmortizacion',
+            'porcentajeAmortizacion', 'periodicidad', 'intervaloInicio', 'intervaloFin',
+            'diasRestarFechaFinDev', 'tipoInteresDias', 'rentaTNA', 'decimalesAjustes',
+            'decimalesRentaTNA', 'coeficienteCEREmision', 'coeficienteCERCompra', 'cerValuacion'
+        ];
+        
+        camposAEscuchar.forEach(campoId => {
+            const elemento = document.getElementById(campoId);
+            if (elemento) {
+                elemento.addEventListener('change', guardarEstadoFormulario);
+                elemento.addEventListener('input', guardarEstadoFormulario);
+            }
+        });
+    }, 300);
+});
+
+// Exportar funciones globalmente
+window.guardarEstadoFormulario = guardarEstadoFormulario;
+window.restaurarEstadoCalculadora = restaurarEstadoCalculadora;
+
 /**
  * Función para cargar/mostrar la tabla de cupones
  */
@@ -25,9 +155,27 @@ function cargarCupones() {
         return;
     }
     
+    // Restaurar datos desde sessionStorage si existen
+    try {
+        const cuponesGuardados = sessionStorage.getItem('calculadora_cuponesData');
+        const counterGuardado = sessionStorage.getItem('calculadora_cuponCounter');
+        
+        if (cuponesGuardados) {
+            cuponesData = JSON.parse(cuponesGuardados);
+        }
+        if (counterGuardado) {
+            cuponCounter = parseInt(counterGuardado, 10) || 1;
+        }
+    } catch (e) {
+        console.warn('[cargarCupones] Error al restaurar cupones desde sessionStorage:', e);
+    }
+    
     // Si la tabla está oculta, mostrarla
     if (container.style.display === 'none') {
         container.style.display = 'block';
+        
+        // Guardar estado de visibilidad
+        sessionStorage.setItem('calculadora_tablaVisible', 'true');
         
         // Si no hay cupones, agregar uno inicial
         if (cuponesData.length === 0) {
@@ -36,9 +184,15 @@ function cargarCupones() {
             // Si ya hay cupones, renderizar los existentes
             renderizarCupones();
         }
+        
+        // Guardar estado del formulario
+        guardarEstadoFormulario();
     } else {
         // Si está visible, ocultarla
         container.style.display = 'none';
+        
+        // Guardar estado de visibilidad
+        sessionStorage.setItem('calculadora_tablaVisible', 'false');
     }
 }
 
@@ -71,6 +225,15 @@ function agregarFilaCupon() {
     };
     
     cuponesData.push(nuevoCupon);
+    
+    // Guardar en sessionStorage
+    try {
+        sessionStorage.setItem('calculadora_cuponesData', JSON.stringify(cuponesData));
+        sessionStorage.setItem('calculadora_cuponCounter', cuponCounter.toString());
+    } catch (e) {
+        console.warn('[agregarFilaCupon] Error al guardar en sessionStorage:', e);
+    }
+    
     renderizarCupones();
 }
 
@@ -79,12 +242,15 @@ function agregarFilaCupon() {
  */
 function eliminarFilaCupon(cuponId) {
     cuponesData = cuponesData.filter(c => c.id !== cuponId);
-    renderizarCupones();
     
-    // Actualizar visibilidad de coeficientes CER
-    if (typeof window.actualizarVisibilidadCoeficientesCER === 'function') {
-        window.actualizarVisibilidadCoeficientesCER();
+    // Guardar en sessionStorage
+    try {
+        sessionStorage.setItem('calculadora_cuponesData', JSON.stringify(cuponesData));
+    } catch (e) {
+        console.warn('[eliminarFilaCupon] Error al guardar en sessionStorage:', e);
     }
+    
+    renderizarCupones();
     
     // Actualizar visibilidad de coeficientes CER
     if (typeof window.actualizarVisibilidadCoeficientesCER === 'function') {
@@ -99,10 +265,36 @@ async function renderizarCupones() {
     const tbody = document.getElementById('cuponesBody');
     if (!tbody) return;
     
+    // Restaurar datos desde sessionStorage si existen (por si se cambió de solapa)
+    try {
+        const cuponesGuardados = sessionStorage.getItem('calculadora_cuponesData');
+        const counterGuardado = sessionStorage.getItem('calculadora_cuponCounter');
+        
+        if (cuponesGuardados && cuponesData.length === 0) {
+            cuponesData = JSON.parse(cuponesGuardados);
+        }
+        if (counterGuardado) {
+            cuponCounter = parseInt(counterGuardado, 10) || 1;
+        }
+    } catch (e) {
+        console.warn('[renderizarCupones] Error al restaurar cupones desde sessionStorage:', e);
+    }
+    
     tbody.innerHTML = '';
     
-    // Verificar estado de ajusteCER
+    // Verificar estado de ajusteCER y tipo de tasa
     const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
+    const tipoTasa = document.getElementById('tasa')?.value || '';
+    // Los valores del select son en minúsculas: 'tamar' o 'badlar'
+    const mostrarIconoLupa = !ajusteCER && (tipoTasa.toLowerCase() === 'tamar' || tipoTasa.toLowerCase() === 'badlar');
+    
+    // Función para convertir fecha de DD/MM/AAAA a DD-MM-AAAA (formato usado en TAMAR/BADLAR)
+    const convertirFechaParaTAMAR = (fechaDDMMAAAA) => {
+        if (!fechaDDMMAAAA || !/^\d{2}\/\d{2}\/\d{4}$/.test(fechaDDMMAAAA)) {
+            return '';
+        }
+        return fechaDDMMAAAA.replace(/\//g, '-');
+    };
     
     // Mostrar/ocultar columnas según ajusteCER
     const columnaCERInicio = document.querySelector('.columna-cer-inicio');
@@ -398,11 +590,20 @@ async function renderizarCupones() {
                        readonly tabindex="-1" />
             </td>
             <td>
-                <button class="btn-icon" onclick="eliminarFilaCupon('${cupon.id}')" title="Eliminar cupón">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                    </svg>
-                </button>
+                <div style="display: flex; gap: 4px; align-items: center;">
+                    ${mostrarIconoLupa && cupon.inicioIntervalo && cupon.finalIntervalo ? `
+                    <button class="btn-icon" onclick="verIntervaloEnTAMAR('${cupon.id}', '${tipoTasa}')" title="Ver intervalo en ${tipoTasa.toUpperCase()}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                        </svg>
+                    </button>
+                    ` : ''}
+                    <button class="btn-icon" onclick="eliminarFilaCupon('${cupon.id}')" title="Eliminar cupón">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                        </svg>
+                    </button>
+                </div>
             </td>
         `;
         
@@ -430,34 +631,43 @@ async function renderizarCupones() {
     if (!ajusteCER && window.cuponesCalculos && typeof window.cuponesCalculos.calcularPromedioTAMAR === 'function') {
         const spread = normalizarNumeroDesdeInput(document.getElementById('spread')?.value) || 0;
         let promedioVigente = null;
+        const decimalesRentaTNA = window.cuponesCalculos && typeof window.cuponesCalculos.obtenerDecimalesRentaTNA === 'function' 
+            ? window.cuponesCalculos.obtenerDecimalesRentaTNA() : 4;
         
-        // Primero, calcular el promedio del cupón vigente
-        if (cuponVigente && cuponVigente.inicioIntervalo && cuponVigente.finalIntervalo) {
-            const promedio = await window.cuponesCalculos.calcularPromedioTAMAR(cuponVigente);
+        // Paso 1: Calcular TAMAR solo para cupones que NO son posteriores al vigente (una sola vez cada uno)
+        const cuponesParaCalcular = cuponesData.filter(cupon => 
+            cupon.id !== 'inversion' && 
+            !cupon.esPosteriorAlVigente && 
+            cupon.inicioIntervalo && 
+            cupon.finalIntervalo
+        );
+        
+        // Calcular todos en paralelo para mejor rendimiento
+        const resultados = await Promise.all(
+            cuponesParaCalcular.map(async cupon => {
+                const promedio = await window.cuponesCalculos.calcularPromedioTAMAR(cupon);
+                return { cupon, promedio };
+            })
+        );
+        
+        // Procesar resultados y guardar el promedio del vigente
+        for (const { cupon, promedio } of resultados) {
             if (promedio !== null && isFinite(promedio)) {
-                promedioVigente = promedio;
+                if (cupon.id === cuponVigenteId) {
+                    promedioVigente = promedio;
+                }
             }
         }
         
-        // Luego, procesar todos los cupones
-        for (const cupon of cuponesData) {
-            if (cupon.id === 'inversion') continue;
-            
-            // Si es posterior al vigente, replicar el promedio del vigente
-            if (cupon.esPosteriorAlVigente && promedioVigente !== null) {
-                actualizarCampoCupon(cupon, 'promedioTasa', formatearNumero(promedioVigente, 4));
-                const rentaTNAReplica = promedioVigente + spread;
-                const decimalesRentaTNA = window.cuponesCalculos && typeof window.cuponesCalculos.obtenerDecimalesRentaTNA === 'function' 
-                    ? window.cuponesCalculos.obtenerDecimalesRentaTNA() : 4;
-                actualizarCampoCupon(cupon, 'rentaTNA', formatearNumero(rentaTNAReplica, decimalesRentaTNA));
-            } else if (cupon.inicioIntervalo && cupon.finalIntervalo && !cupon.esPosteriorAlVigente) {
-                // Si no es posterior al vigente, calcular normalmente
-                const promedio = await window.cuponesCalculos.calcularPromedioTAMAR(cupon);
-                if (promedio !== null && isFinite(promedio)) {
-                    // Si es el cupón vigente, guardar su promedio
-                    if (cupon.id === cuponVigenteId) {
-                        promedioVigente = promedio;
-                    }
+        // Paso 2: Aplicar el promedio del vigente a los cupones posteriores
+        if (promedioVigente !== null) {
+            for (const cupon of cuponesData) {
+                if (cupon.id === 'inversion') continue;
+                
+                if (cupon.esPosteriorAlVigente) {
+                    actualizarCampoCupon(cupon, 'promedioTasa', formatearNumero(promedioVigente, 4));
+                    const rentaTNAReplica = promedioVigente + spread;
+                    actualizarCampoCupon(cupon, 'rentaTNA', formatearNumero(rentaTNAReplica, decimalesRentaTNA));
                 }
             }
         }
@@ -535,6 +745,12 @@ async function actualizarCupon(cuponId, campo, valor) {
         // Si cambió fechaInicio o fechaFinDev, puede haber cambiado el cupón vigente
         // Re-renderizar para actualizar los promedios de los cupones posteriores
         if (!ajusteCER && (campo === 'fechaInicio' || campo === 'fechaFinDev' || campo === 'fechaLiquid')) {
+            // Guardar en sessionStorage antes de renderizar
+            try {
+                sessionStorage.setItem('calculadora_cuponesData', JSON.stringify(cuponesData));
+            } catch (e) {
+                console.warn('[actualizarCupon] Error al guardar en sessionStorage:', e);
+            }
             // Re-renderizar para recalcular cupón vigente y promedios
             await renderizarCupones();
             return; // Salir temprano porque renderizarCupones ya recalcula todo
@@ -547,6 +763,13 @@ async function actualizarCupon(cuponId, campo, valor) {
         // Recalcular flujos después de actualizar valores derivados
         if (window.cuponesCalculos && typeof window.cuponesCalculos.recalcularFlujos === 'function') {
             window.cuponesCalculos.recalcularFlujos(cuponesData);
+        }
+        
+        // Guardar en sessionStorage
+        try {
+            sessionStorage.setItem('calculadora_cuponesData', JSON.stringify(cuponesData));
+        } catch (e) {
+            console.warn('[actualizarCupon] Error al guardar en sessionStorage:', e);
         }
     }
 }
@@ -573,6 +796,17 @@ function obtenerCupones() {
 function limpiarCupones() {
     cuponesData = [];
     cuponCounter = 1;
+    
+    // Limpiar sessionStorage
+    try {
+        sessionStorage.removeItem('calculadora_cuponesData');
+        sessionStorage.removeItem('calculadora_cuponCounter');
+        sessionStorage.removeItem('calculadora_tablaVisible');
+        sessionStorage.removeItem('calculadora_formState');
+    } catch (e) {
+        console.warn('[limpiarCupones] Error al limpiar sessionStorage:', e);
+    }
+    
     renderizarCupones();
 }
 
@@ -587,6 +821,20 @@ function setCuponesData(nuevosDatos) {
             cupon.id = cuponCounter++;
         }
     });
+    
+    // Guardar en sessionStorage para persistencia entre solapas
+    try {
+        sessionStorage.setItem('calculadora_cuponesData', JSON.stringify(cuponesData));
+        sessionStorage.setItem('calculadora_cuponCounter', cuponCounter.toString());
+        sessionStorage.setItem('calculadora_tablaVisible', 'true');
+        // Guardar estado del formulario
+        if (typeof guardarEstadoFormulario === 'function') {
+            guardarEstadoFormulario();
+        }
+    } catch (e) {
+        console.warn('[setCuponesData] Error al guardar en sessionStorage:', e);
+    }
+    
     renderizarCupones();
     
     // Actualizar visibilidad de coeficientes CER
@@ -706,6 +954,31 @@ window.cuponesModule.recalcularDayCountFactor = function(cupon) {
 
 // También exportar actualizarCupon globalmente para el onclick en el HTML
 window.actualizarCupon = actualizarCupon;
+
+// Función para redirigir a TAMAR/BADLAR con fechas del intervalo del cupón
+function verIntervaloEnTAMAR(cuponId, tipoTasa) {
+    const cupones = getCuponesData();
+    const cupon = cupones.find(c => c.id === cuponId);
+    
+    if (!cupon || !cupon.inicioIntervalo || !cupon.finalIntervalo) {
+        console.warn('[verIntervaloEnTAMAR] Cupón no encontrado o sin intervalos válidos');
+        return;
+    }
+    
+    // Convertir fechas de DD/MM/AAAA a DD-MM-AAAA
+    const fechaDesde = cupon.inicioIntervalo.replace(/\//g, '-');
+    const fechaHasta = cupon.finalIntervalo.replace(/\//g, '-');
+    
+    // Determinar la ruta según el tipo de tasa (comparar en minúsculas)
+    const tipoTasaLower = tipoTasa.toLowerCase();
+    const ruta = tipoTasaLower === 'tamar' ? '/tamar' : '/badlar';
+    
+    // Redirigir con parámetros en la URL
+    window.location.href = `${ruta}?desde=${fechaDesde}&hasta=${fechaHasta}`;
+}
+
+// Exportar función globalmente
+window.verIntervaloEnTAMAR = verIntervaloEnTAMAR;
 
 // Log para confirmar que el módulo está inicializado
 console.log('[core.js] window.cuponesModule inicializado:', {

@@ -169,7 +169,12 @@ function abrirDatePicker(inputId) {
         popup = document.createElement('div');
         popup.id = popupId;
         popup.className = 'date-picker-popup';
+        // Asegurar que el z-index sea mayor que los modales (10000)
+        popup.style.zIndex = '10010';
         document.body.appendChild(popup);
+    } else {
+        // Asegurar z-index cada vez que se muestra
+        popup.style.zIndex = '10010';
     }
     
     // Inicializar estado

@@ -152,8 +152,8 @@ function generarTablaTAMAR(datos, soloNuevos = false) {
             
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${formatearFechaMostrarTAMAR(fecha)}</td>
-                <td style="text-align: right;">${formatearNumeroTAMAR(valor)}</td>
+                <td style="width: 120px !important; max-width: 120px !important; text-align: center !important;">${formatearFechaMostrarTAMAR(fecha)}</td>
+                <td style="text-align: center !important; width: 120px !important; max-width: 120px !important;">${formatearNumeroTAMAR(valor)}</td>
             `;
             tbody.appendChild(row);
         });
@@ -165,10 +165,16 @@ function generarTablaTAMAR(datos, soloNuevos = false) {
             rowPromedio.style.background = '#f8f9fa';
             rowPromedio.style.fontWeight = '600';
             rowPromedio.innerHTML = `
-                <td style="font-weight: 600; color: var(--text-primary);">Promedio</td>
-                <td style="text-align: right; font-weight: 600; color: var(--primary-color);">${formatearNumeroTAMAR(promedio)}</td>
+                <td style="font-weight: 600; color: var(--text-primary); width: 120px !important; max-width: 120px !important; text-align: center !important;">Promedio</td>
+                <td style="text-align: center !important; font-weight: 600; color: var(--primary-color); width: 120px !important; max-width: 120px !important;">${formatearNumeroTAMAR(promedio)}</td>
             `;
             tbody.appendChild(rowPromedio);
+            
+            // Actualizar el promedio en el contenedor del botón
+            const promedioDisplay = document.getElementById('promedioTAMARValor');
+            if (promedioDisplay) {
+                promedioDisplay.textContent = formatearNumeroTAMAR(promedio);
+            }
         }
         
         return datosOrdenados.length;
@@ -197,16 +203,16 @@ function abrirModalIntervalosTAMAR() {
         const fechaDesdeInput = document.getElementById('fechaDesdeTAMAR');
         const fechaHastaInput = document.getElementById('fechaHastaTAMAR');
         
-        if (fechaDesdeInput && !fechaDesdeInput.value) {
-            const hoy = new Date();
-            const dia15 = new Date(hoy.getFullYear(), hoy.getMonth(), 15);
-            fechaDesdeInput.value = convertirFechaYYYYMMDDaDDMMAAAA_TAMAR(formatearFechaInput(dia15));
+        // Establecer fecha de hoy por defecto
+        const hoy = new Date();
+        const fechaHoyStr = convertirFechaYYYYMMDDaDDMMAAAA_TAMAR(formatearFechaInput(hoy));
+        
+        if (fechaDesdeInput) {
+            fechaDesdeInput.value = fechaHoyStr;
         }
         
-        if (fechaHastaInput && !fechaHastaInput.value) {
-            const hoy = new Date();
-            const dia15Siguiente = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 15);
-            fechaHastaInput.value = convertirFechaYYYYMMDDaDDMMAAAA_TAMAR(formatearFechaInput(dia15Siguiente));
+        if (fechaHastaInput) {
+            fechaHastaInput.value = fechaHoyStr;
         }
     }
 }
@@ -455,30 +461,62 @@ document.addEventListener('DOMContentLoaded', () => {
         aplicarMascaraFechaTAMAR(fechaHastaInput);
     }
     
-    // Verificar si hay fechas guardadas en sessionStorage para auto-filtrar
-    const fechaDesde = sessionStorage.getItem('tamar_fechaDesde');
-    const fechaHasta = sessionStorage.getItem('tamar_fechaHasta');
-    const autoFiltrar = sessionStorage.getItem('tamar_autoFiltrar');
+    // Leer parámetros de URL (prioridad sobre sessionStorage)
+    const urlParams = new URLSearchParams(window.location.search);
+    const fechaDesdeURL = urlParams.get('desde');
+    const fechaHastaURL = urlParams.get('hasta');
     
-    if (fechaDesde && fechaHasta && autoFiltrar === 'true') {
-        const buscarDesdeInput = document.getElementById('buscarDesdeTAMAR');
-        const buscarHastaInput = document.getElementById('buscarHastaTAMAR');
+    const buscarDesdeInput = document.getElementById('buscarDesdeTAMAR');
+    const buscarHastaInput = document.getElementById('buscarHastaTAMAR');
+    
+    // Variables para fechas (declaradas fuera del bloque if para que estén disponibles después)
+    let fechaDesde = null;
+    let fechaHasta = null;
+    let autoFiltrar = false;
+    
+    if (buscarDesdeInput && buscarHastaInput) {
+        // Aplicar máscaras a los inputs de búsqueda
+        aplicarMascaraFechaTAMAR(buscarDesdeInput);
+        aplicarMascaraFechaTAMAR(buscarHastaInput);
         
-        if (buscarDesdeInput && buscarHastaInput) {
+        // Prioridad 1: Parámetros de URL
+        if (fechaDesdeURL && fechaHastaURL) {
+            // Las fechas vienen en formato DD-MM-AAAA desde la URL
+            fechaDesde = fechaDesdeURL;
+            fechaHasta = fechaHastaURL;
+            autoFiltrar = true;
+            
+            // Limpiar parámetros de URL después de leerlos
+            const nuevaURL = window.location.pathname;
+            window.history.replaceState({}, document.title, nuevaURL);
+        } 
+        // Prioridad 2: sessionStorage
+        else {
+            fechaDesde = sessionStorage.getItem('tamar_fechaDesde');
+            fechaHasta = sessionStorage.getItem('tamar_fechaHasta');
+            autoFiltrar = sessionStorage.getItem('tamar_autoFiltrar') === 'true';
+            
+            if (fechaDesde && fechaHasta && autoFiltrar) {
+                // Limpiar sessionStorage
+                sessionStorage.removeItem('tamar_fechaDesde');
+                sessionStorage.removeItem('tamar_fechaHasta');
+                sessionStorage.removeItem('tamar_autoFiltrar');
+            }
+        }
+        
+        if (fechaDesde && fechaHasta && autoFiltrar) {
             buscarDesdeInput.value = fechaDesde;
             buscarHastaInput.value = fechaHasta;
             
-            // Limpiar sessionStorage
-            sessionStorage.removeItem('tamar_fechaDesde');
-            sessionStorage.removeItem('tamar_fechaHasta');
-            sessionStorage.removeItem('tamar_autoFiltrar');
-            
             // Ejecutar el filtro automáticamente después de un pequeño delay
+            // Aumentar el delay para asegurar que los inputs estén listos
             setTimeout(() => {
                 if (typeof filtrarTAMARPorIntervalo === 'function') {
                     filtrarTAMARPorIntervalo();
+                } else {
+                    console.warn('[TAMAR] filtrarTAMARPorIntervalo no está disponible');
                 }
-            }, 300);
+            }, 500);
         }
     }
     
@@ -491,20 +529,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    const buscarDesdeInput = document.getElementById('buscarDesdeTAMAR');
-    const buscarHastaInput = document.getElementById('buscarHastaTAMAR');
-    
-    if (buscarDesdeInput) {
-        aplicarMascaraFechaTAMAR(buscarDesdeInput);
-    }
-    
-    if (buscarHastaInput) {
-        aplicarMascaraFechaTAMAR(buscarHastaInput);
-    }
-    
     // Limpiar datos filtrados si no hay auto-filtrar
     // Solo mostrar tabla cuando se hace una búsqueda explícita
-    if (!fechaDesde || !fechaHasta || autoFiltrar !== 'true') {
+    if (!fechaDesde || !fechaHasta || autoFiltrar !== true) {
         window.tamarDatosFiltrados = [];
         const tableContainer = document.getElementById('tamarTableContainer');
         if (tableContainer) {

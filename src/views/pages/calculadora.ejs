@@ -15,6 +15,7 @@
                 <div style="margin-bottom: 24px;">
                     <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap; margin-bottom: 16px;">
                         <h1 class="page-title" style="margin: 0;">Calculadora</h1>
+                        <!-- Panel de Fecha Valuación (siempre visible) -->
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <label class="form-label" style="font-size: 14px; margin: 0; white-space: nowrap;">Fecha Valuación:</label>
                             <div class="date-input-wrapper" style="position: relative;">
@@ -29,14 +30,16 @@
                                 </button>
                                 <div id="datePickerFechaValuacion" class="date-picker-popup" style="display: none;"></div>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <label class="form-label" style="font-size: 14px; margin: 0; white-space: nowrap;">CER Valuación:</label>
-                                <input type="text" class="input input-sm" id="cerValuacion" readonly style="width: 120px; background-color: #f1f3f4; cursor: not-allowed;" />
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <label for="decimalesRentaTNA" class="form-label" style="font-size: 14px; margin: 0; white-space: nowrap;">Decimales Renta TNA:</label>
-                                <input type="number" id="decimalesRentaTNA" min="0" max="12" value="4" style="width: 60px; padding: 4px 8px; border: 1px solid #dadce0; border-radius: 4px; font-size: 14px; text-align: center;" onchange="actualizarDecimalesRentaTNA()" />
-                            </div>
+                        </div>
+                        <!-- Panel solo para ajuste CER (CER Valuación) -->
+                        <div id="panelCERValuacion" style="display: none; align-items: center; gap: 8px;">
+                            <label class="form-label" style="font-size: 14px; margin: 0; white-space: nowrap;">CER Valuación:</label>
+                            <input type="text" class="input input-sm" id="cerValuacion" readonly style="width: 120px; background-color: #f1f3f4; cursor: not-allowed;" />
+                        </div>
+                        <!-- Panel solo para sin ajuste CER (Decimales Renta TNA) -->
+                        <div id="panelDecimalesRentaTNA" style="display: none; align-items: center; gap: 8px;">
+                            <label for="decimalesRentaTNA" class="form-label" style="font-size: 14px; margin: 0; white-space: nowrap;">Decimales Renta TNA:</label>
+                            <input type="number" id="decimalesRentaTNA" min="0" max="12" value="4" style="width: 60px; padding: 4px 8px; border: 1px solid #dadce0; border-radius: 4px; font-size: 14px; text-align: center;" onchange="actualizarDecimalesRentaTNA()" />
                         </div>
                     </div>
                     <div id="coeficientesCERContainer" style="display: none; align-items: center; gap: 12px; flex-wrap: wrap;">
