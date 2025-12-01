@@ -505,6 +505,12 @@ async function seleccionarCalculadora(id) {
             const tablaCuponesContainer = document.getElementById('tablaCuponesContainer');
             if (tablaCuponesContainer) {
                 tablaCuponesContainer.style.display = 'none';
+                
+                // Ocultar panel de resultados
+                const panelResultados = document.getElementById('panelResultados');
+                if (panelResultados) {
+                    panelResultados.style.display = 'none';
+                }
             }
             
             // Limpiar cupones existentes
@@ -533,6 +539,12 @@ async function seleccionarCalculadora(id) {
         const tablaCuponesContainer = document.getElementById('tablaCuponesContainer');
         if (tablaCuponesContainer) {
             tablaCuponesContainer.style.display = 'none';
+        }
+        
+        // Ocultar panel de resultados
+        const panelResultados = document.getElementById('panelResultados');
+        if (panelResultados) {
+            panelResultados.style.display = 'none';
         }
         
         // Limpiar cupones existentes

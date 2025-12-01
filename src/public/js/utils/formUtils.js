@@ -9,6 +9,8 @@
  */
 function aplicarMascaraFecha(input, separador = '/') {
     if (!input) return;
+    // No aplicar máscara a inputs de tipo number
+    if (input.type === 'number') return;
     
     // Manejar teclas de borrado (Backspace y Delete)
     input.addEventListener('keydown', function(e) {
@@ -31,9 +33,11 @@ function aplicarMascaraFecha(input, separador = '/') {
                     // Borrar la barra y el carácter antes de ella
                     const nuevoValor = valor.substring(0, cursorPos - 2) + valor.substring(cursorPos);
                     input.value = nuevoValor;
-                    // Reposicionar cursor
+                    // Reposicionar cursor (solo si el input no es de tipo number)
                     setTimeout(() => {
-                        input.setSelectionRange(cursorPos - 2, cursorPos - 2);
+                        if (input.type !== 'number') {
+                            input.setSelectionRange(cursorPos - 2, cursorPos - 2);
+                        }
                     }, 0);
                     return;
                 }
@@ -46,9 +50,11 @@ function aplicarMascaraFecha(input, separador = '/') {
                     // Borrar la barra y el carácter después de ella
                     const nuevoValor = valor.substring(0, cursorPos) + valor.substring(cursorPos + 2);
                     input.value = nuevoValor;
-                    // Mantener cursor en la misma posición
+                    // Mantener cursor en la misma posición (solo si el input no es de tipo number)
                     setTimeout(() => {
-                        input.setSelectionRange(cursorPos, cursorPos);
+                        if (input.type !== 'number') {
+                            input.setSelectionRange(cursorPos, cursorPos);
+                        }
                     }, 0);
                     return;
                 }
@@ -96,7 +102,10 @@ function aplicarMascaraFecha(input, separador = '/') {
         }
         
         setTimeout(() => {
-            input.setSelectionRange(nuevaPosicion, nuevaPosicion);
+            // Solo usar setSelectionRange si el input no es de tipo number
+            if (input.type !== 'number') {
+                input.setSelectionRange(nuevaPosicion, nuevaPosicion);
+            }
         }, 0);
     });
     
@@ -117,6 +126,8 @@ function aplicarMascaraFecha(input, separador = '/') {
  */
 function aplicarMascaraFechaDDMM(input) {
     if (!input) return;
+    // No aplicar máscara a inputs de tipo number
+    if (input.type === 'number') return;
     
     input.addEventListener('keydown', function(e) {
         const input = e.target;
@@ -186,7 +197,10 @@ function aplicarMascaraFechaDDMM(input) {
         }
         
         setTimeout(() => {
-            input.setSelectionRange(nuevaPosicion, nuevaPosicion);
+            // Solo usar setSelectionRange si el input no es de tipo number
+            if (input.type !== 'number') {
+                input.setSelectionRange(nuevaPosicion, nuevaPosicion);
+            }
         }, 0);
     });
     

@@ -23,7 +23,8 @@ function obtenerDatosFormulario() {
         intervaloInicio: parseInt(document.getElementById('intervaloInicio')?.value || '0', 10),
         intervaloFin: parseInt(document.getElementById('intervaloFin')?.value || '0', 10),
         fechaAmortizacion: document.getElementById('fechaAmortizacion')?.value || '',
-        fechaValuacion: document.getElementById('fechaValuacion')?.value || ''
+        fechaValuacion: document.getElementById('fechaValuacion')?.value || '',
+        ajusteCER: document.getElementById('ajusteCER')?.checked || false
     };
 }
 
@@ -80,20 +81,31 @@ async function crearFilaInversion() {
     
     // Usar fechaLiquid (que es fechaCompra) + intervaloFin con días hábiles
     const fechaLiquid = fechaCompraDate; // En la inversión, fechaLiquid = fechaCompra
+    
+    // Verificar si el feriado 2022-03-01 está en la lista
+    const feriadoMarzo = feriados.filter(f => f.includes('2022-03'));
+    console.log('[crearFilaInversion] Feriados de marzo 2022:', feriadoMarzo);
+    console.log('[crearFilaInversion] Todos los feriados:', feriados);
+    
     let finalIntervalo = window.cuponesDiasHabiles.sumarDiasHabiles(fechaLiquid, datos.intervaloFin, feriados);
-    console.log('[crearFilaInversion] Cálculo finalIntervalo:', {
+    
+    // Log detallado del resultado
+    const finalIntervaloYear = finalIntervalo.getFullYear();
+    const finalIntervaloMonth = String(finalIntervalo.getMonth() + 1).padStart(2, '0');
+    const finalIntervaloDay = String(finalIntervalo.getDate()).padStart(2, '0');
+    const finalIntervaloISO = `${finalIntervaloYear}-${finalIntervaloMonth}-${finalIntervaloDay}`;
+    
+    console.log('[crearFilaInversion] Resultado sumarDiasHabiles:', {
         fechaLiquid: formatearFechaInput(fechaLiquid),
         intervaloFin: datos.intervaloFin,
         feriadosCount: feriados.length,
-        finalIntervalo: formatearFechaInput(finalIntervalo),
-        feriadosEnRango: feriados.filter(f => {
-            const fechaFeriado = crearFechaDesdeString(f);
-            return fechaFeriado >= fechaLiquid && fechaFeriado <= finalIntervalo;
-        }).length
+        finalIntervaloDirecto: finalIntervaloISO,
+        finalIntervaloConFormatear: formatearFechaInput(finalIntervalo)
     });
     
     // Validación: si hay fecha valuación y finalIntervalo es mayor, ajustar
-    if (datos.fechaValuacion) {
+    // SOLO para calculadoras con ajuste CER
+    if (datos.ajusteCER && datos.fechaValuacion) {
         const fechaValuacionDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(datos.fechaValuacion));
         if (fechaValuacionDate && finalIntervalo > fechaValuacionDate) {
             // Usar fecha valuación + intervaloFin
@@ -121,6 +133,14 @@ async function crearFilaInversion() {
     // Convertir fechas a formato DD/MM/AAAA para mostrar
     const fechaLiquidacionStr = convertirFechaYYYYMMDDaDDMMAAAA(formatearFechaInput(fechaCompraDate), '/');
     const finalIntervaloStr = convertirFechaYYYYMMDDaDDMMAAAA(formatearFechaInput(finalIntervalo), '/');
+    
+    // Log para verificar el valor calculado
+    console.log('[crearFilaInversion] Final Intervalo calculado:', {
+        finalIntervaloDate: finalIntervalo,
+        finalIntervaloYYYYMMDD: formatearFechaInput(finalIntervalo),
+        finalIntervaloStr: finalIntervaloStr,
+        valorCERFinal: valorCERFinal
+    });
     
     // Formatear valor CER Final (4 decimales, usar punto como separador decimal)
     const valorCERFinalStr = valorCERFinal !== null ? valorCERFinal.toFixed(4) : '';
@@ -423,9 +443,12 @@ async function crearFilasCupones() {
         );
         
         // Calcular final intervalo
-        // Con ajuste CER: fecha liquidación + intervaloFin
-        // Sin ajuste CER: fecha fin dev + intervaloFin
+        // IMPORTANTE: Para calculadoras CON ajuste CER, SIEMPRE usar fechaLiquidacion como base
+        // Para calculadoras SIN ajuste CER, usar fechaFinDev como base
         const ajusteCER = datos.ajusteCER || false;
+        
+        // Para calculadoras CON ajuste CER: fechaBaseFinalIntervalo = fechaLiquidacion
+        // Para calculadoras SIN ajuste CER: fechaBaseFinalIntervalo = fechaFinDev
         const fechaBaseFinalIntervalo = ajusteCER ? fechaLiquidacion : fechaFinDev;
         
         // Usar feriados ya cargados en memoria
@@ -436,7 +459,8 @@ async function crearFilasCupones() {
         );
         
         // Validación: si hay fecha valuación y las fechas de intervalo son mayores, ajustar
-        if (datos.fechaValuacion) {
+        // SOLO para calculadoras con ajuste CER
+        if (ajusteCER && datos.fechaValuacion) {
             const fechaValuacionDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(datos.fechaValuacion));
             if (fechaValuacionDate) {
                 // Si inicioIntervalo es mayor a fecha valuación, usar fecha valuación + intervaloInicio
@@ -449,7 +473,8 @@ async function crearFilasCupones() {
                 }
                 
                 // Si finalIntervalo es mayor a fecha valuación, usar fecha valuación + intervaloFin
-                if (finalIntervalo > fechaValuacionDate) {
+                // PERO solo si la fecha base original (fechaLiquidacion) es mayor a fecha valuación
+                if (finalIntervalo > fechaValuacionDate && fechaLiquidacion > fechaValuacionDate) {
                     finalIntervalo = window.cuponesDiasHabiles.sumarDiasHabiles(
                         fechaValuacionDate,
                         datos.intervaloFin,

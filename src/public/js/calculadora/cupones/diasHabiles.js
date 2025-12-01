@@ -7,6 +7,21 @@ let feriadosCache = null;
 let feriadosCacheFecha = null;
 
 /**
+ * Formatear fecha a formato YYYY-MM-DD (función local para asegurar disponibilidad)
+ * @param {Date} fecha - Fecha a formatear
+ * @returns {string} Fecha en formato YYYY-MM-DD
+ */
+function formatearFechaInputLocal(fecha) {
+    if (!fecha || !(fecha instanceof Date) || isNaN(fecha.getTime())) {
+        return '';
+    }
+    const year = fecha.getFullYear();
+    const month = String(fecha.getMonth() + 1).padStart(2, '0');
+    const day = String(fecha.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+/**
  * Obtener feriados desde el cache (NO consulta BD automáticamente)
  * @param {string} fechaDesde - Fecha inicio en formato YYYY-MM-DD
  * @param {string} fechaHasta - Fecha fin en formato YYYY-MM-DD
@@ -42,10 +57,10 @@ async function cargarFeriadosDesdeBD(fechaDesde, fechaHasta) {
         // Asegurar que las fechas estén en formato YYYY-MM-DD (strings)
         const desdeFormateado = typeof fechaDesde === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(fechaDesde) 
             ? fechaDesde 
-            : (fechaDesde instanceof Date ? formatearFechaInput(fechaDesde) : String(fechaDesde));
+            : (fechaDesde instanceof Date ? formatearFechaInputLocal(fechaDesde) : String(fechaDesde));
         const hastaFormateado = typeof fechaHasta === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(fechaHasta) 
             ? fechaHasta 
-            : (fechaHasta instanceof Date ? formatearFechaInput(fechaHasta) : String(fechaHasta));
+            : (fechaHasta instanceof Date ? formatearFechaInputLocal(fechaHasta) : String(fechaHasta));
         
         const response = await fetch(`/api/feriados/bd?desde=${encodeURIComponent(desdeFormateado)}&hasta=${encodeURIComponent(hastaFormateado)}`);
         const result = await response.json();
@@ -114,8 +129,11 @@ function esDiaHabil(fecha, feriados = []) {
     }
     
     // Verificar si es feriado
-    const fechaStr = formatearFechaInput(fecha);
-    return !feriados.includes(fechaStr);
+    // Usar función local para asegurar formato correcto YYYY-MM-DD
+    const fechaStr = formatearFechaInputLocal(fecha);
+    const esFeriado = feriados.includes(fechaStr);
+    
+    return !esFeriado;
 }
 
 /**
@@ -141,10 +159,10 @@ function obtenerProximoDiaHabil(fecha, feriados = []) {
  * @returns {Promise<Date>} Próximo día hábil
  */
 async function obtenerProximoDiaHabilAsync(fecha, diasAdelante = 30) {
-    const fechaDesde = formatearFechaInput(fecha);
+    const fechaDesde = formatearFechaInputLocal(fecha);
     const fechaHastaDate = new Date(fecha);
     fechaHastaDate.setDate(fechaHastaDate.getDate() + diasAdelante);
-    const fechaHasta = formatearFechaInput(fechaHastaDate);
+    const fechaHasta = formatearFechaInputLocal(fechaHastaDate);
     
     // Obtener feriados desde cache, o cargar desde BD si no hay cache
     let feriados = obtenerFeriados(fechaDesde, fechaHasta);
@@ -159,12 +177,22 @@ async function obtenerProximoDiaHabilAsync(fecha, diasAdelante = 30) {
  * @param {Date} fecha - Fecha de inicio
  * @param {number} dias - Número de días a sumar (positivo) o restar (negativo)
  * @param {Array<string>} feriados - Array de fechas de feriados en formato YYYY-MM-DD
- * @returns {Date} Fecha resultante después de sumar/restar días hábiles
+ * @returns {Date} Fecha resultante después de sumar/restar días hábiles (siempre será un día hábil)
  */
 function sumarDiasHabiles(fecha, dias, feriados = []) {
     let fechaActual = new Date(fecha);
     let diasRestantes = Math.abs(dias);
     const direccion = dias >= 0 ? 1 : -1; // 1 para adelante, -1 para atrás
+    const fechaInicial = formatearFechaInputLocal(fecha);
+    
+    // Log de diagnóstico
+    console.log('[sumarDiasHabiles] Inicio:', {
+        fechaInicial,
+        dias,
+        direccion: direccion === 1 ? 'adelante' : 'atrás',
+        feriadosCount: feriados.length,
+        feriadosMuestra: feriados.slice(0, 5)
+    });
     
     while (diasRestantes > 0) {
         fechaActual.setDate(fechaActual.getDate() + direccion);
@@ -174,6 +202,32 @@ function sumarDiasHabiles(fecha, dias, feriados = []) {
             diasRestantes--;
         }
     }
+    
+    const fechaAntesAjuste = formatearFechaInputLocal(fechaActual);
+    
+    // Asegurar que el resultado siempre sea un día hábil
+    // Si la fecha resultante es un feriado o fin de semana, ajustar en la misma dirección
+    let ajustes = 0;
+    while (!esDiaHabil(fechaActual, feriados)) {
+        const motivoNoHabil = feriados.includes(formatearFechaInputLocal(fechaActual)) ? 'feriado' : 'fin de semana';
+        console.log('[sumarDiasHabiles] Ajustando:', {
+            fecha: formatearFechaInputLocal(fechaActual),
+            motivo: motivoNoHabil
+        });
+        fechaActual.setDate(fechaActual.getDate() + direccion);
+        ajustes++;
+        if (ajustes > 30) {
+            console.error('[sumarDiasHabiles] Demasiados ajustes, posible loop infinito');
+            break;
+        }
+    }
+    
+    console.log('[sumarDiasHabiles] Resultado:', {
+        fechaInicial,
+        fechaAntesAjuste,
+        fechaFinal: formatearFechaInputLocal(fechaActual),
+        ajustesRealizados: ajustes
+    });
     
     return fechaActual;
 }
@@ -199,8 +253,8 @@ async function sumarDiasHabilesAsync(fecha, dias, margenDias = 60) {
         fechaHastaDate.setDate(fechaHastaDate.getDate() + dias + margenDias);
     }
     
-    const fechaDesde = formatearFechaInput(fechaDesdeDate);
-    const fechaHasta = formatearFechaInput(fechaHastaDate);
+    const fechaDesde = formatearFechaInputLocal(fechaDesdeDate);
+    const fechaHasta = formatearFechaInputLocal(fechaHastaDate);
     
     // Obtener feriados desde cache, o cargar desde BD si no hay cache
     let feriados = obtenerFeriados(fechaDesde, fechaHasta);

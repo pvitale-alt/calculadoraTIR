@@ -13,21 +13,6 @@ window.cuponesModule = window.cuponesModule || {};
 let cuponesData = [];
 let cuponCounter = 1;
 
-// Restaurar datos de cupones desde sessionStorage al cargar
-try {
-    const cuponesGuardados = sessionStorage.getItem('calculadora_cuponesData');
-    const counterGuardado = sessionStorage.getItem('calculadora_cuponCounter');
-    
-    if (cuponesGuardados) {
-        cuponesData = JSON.parse(cuponesGuardados);
-    }
-    if (counterGuardado) {
-        cuponCounter = parseInt(counterGuardado, 10) || 1;
-    }
-} catch (e) {
-    console.warn('[core.js] Error al restaurar cupones desde sessionStorage:', e);
-}
-
 // Función para restaurar el estado completo al cargar la página
 function restaurarEstadoCalculadora() {
     try {
@@ -68,18 +53,7 @@ function restaurarEstadoCalculadora() {
             }
         }
         
-        // Si hay cupones guardados, mostrar la tabla y renderizar
-        const tablaVisible = sessionStorage.getItem('calculadora_tablaVisible');
-        if (cuponesData.length > 0 && tablaVisible === 'true') {
-            const container = document.getElementById('tablaCuponesContainer');
-            if (container) {
-                container.style.display = 'block';
-                // Renderizar con un pequeño delay para asegurar que el DOM esté listo
-                setTimeout(() => {
-                    renderizarCupones();
-                }, 100);
-            }
-        }
+        // No restaurar cupones desde sessionStorage - deben cargarse manualmente
     } catch (e) {
         console.warn('[restaurarEstadoCalculadora] Error:', e);
     }
@@ -155,27 +129,11 @@ function cargarCupones() {
         return;
     }
     
-    // Restaurar datos desde sessionStorage si existen
-    try {
-        const cuponesGuardados = sessionStorage.getItem('calculadora_cuponesData');
-        const counterGuardado = sessionStorage.getItem('calculadora_cuponCounter');
-        
-        if (cuponesGuardados) {
-            cuponesData = JSON.parse(cuponesGuardados);
-        }
-        if (counterGuardado) {
-            cuponCounter = parseInt(counterGuardado, 10) || 1;
-        }
-    } catch (e) {
-        console.warn('[cargarCupones] Error al restaurar cupones desde sessionStorage:', e);
-    }
+    // No restaurar desde sessionStorage - los cupones deben cargarse manualmente
     
     // Si la tabla está oculta, mostrarla
     if (container.style.display === 'none') {
         container.style.display = 'block';
-        
-        // Guardar estado de visibilidad
-        sessionStorage.setItem('calculadora_tablaVisible', 'true');
         
         // Si no hay cupones, agregar uno inicial
         if (cuponesData.length === 0) {
@@ -190,9 +148,6 @@ function cargarCupones() {
     } else {
         // Si está visible, ocultarla
         container.style.display = 'none';
-        
-        // Guardar estado de visibilidad
-        sessionStorage.setItem('calculadora_tablaVisible', 'false');
     }
 }
 
@@ -226,14 +181,6 @@ function agregarFilaCupon() {
     
     cuponesData.push(nuevoCupon);
     
-    // Guardar en sessionStorage
-    try {
-        sessionStorage.setItem('calculadora_cuponesData', JSON.stringify(cuponesData));
-        sessionStorage.setItem('calculadora_cuponCounter', cuponCounter.toString());
-    } catch (e) {
-        console.warn('[agregarFilaCupon] Error al guardar en sessionStorage:', e);
-    }
-    
     renderizarCupones();
 }
 
@@ -242,13 +189,6 @@ function agregarFilaCupon() {
  */
 function eliminarFilaCupon(cuponId) {
     cuponesData = cuponesData.filter(c => c.id !== cuponId);
-    
-    // Guardar en sessionStorage
-    try {
-        sessionStorage.setItem('calculadora_cuponesData', JSON.stringify(cuponesData));
-    } catch (e) {
-        console.warn('[eliminarFilaCupon] Error al guardar en sessionStorage:', e);
-    }
     
     renderizarCupones();
     
@@ -265,22 +205,14 @@ async function renderizarCupones() {
     const tbody = document.getElementById('cuponesBody');
     if (!tbody) return;
     
-    // Restaurar datos desde sessionStorage si existen (por si se cambió de solapa)
-    try {
-        const cuponesGuardados = sessionStorage.getItem('calculadora_cuponesData');
-        const counterGuardado = sessionStorage.getItem('calculadora_cuponCounter');
-        
-        if (cuponesGuardados && cuponesData.length === 0) {
-            cuponesData = JSON.parse(cuponesGuardados);
-        }
-        if (counterGuardado) {
-            cuponCounter = parseInt(counterGuardado, 10) || 1;
-        }
-    } catch (e) {
-        console.warn('[renderizarCupones] Error al restaurar cupones desde sessionStorage:', e);
-    }
+    // No restaurar desde sessionStorage - los cupones deben cargarse manualmente
     
     tbody.innerHTML = '';
+    
+    // Obtener decimales de ajustes para calcular step
+    const decimalesAjustes = (typeof window.obtenerDecimalesAjustes === 'function') ? window.obtenerDecimalesAjustes() : 8;
+    const stepRentaNominal = decimalesAjustes === 12 ? '0.000000000001' : decimalesAjustes === 10 ? '0.0000000001' : decimalesAjustes === 8 ? '0.00000001' : '0.0001';
+    const stepAmortizAjustada = decimalesAjustes === 12 ? '0.000000000001' : decimalesAjustes === 10 ? '0.0000000001' : decimalesAjustes === 8 ? '0.00000001' : '0.0001';
     
     // Verificar estado de ajusteCER y tipo de tasa
     const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
@@ -537,14 +469,14 @@ async function renderizarCupones() {
                 <input type="number" class="input-table" 
                        id="amortizAjustada_${cupon.id}"
                        value="${cupon.amortizAjustada || ''}" 
-                       step="0.0001"
+                       step="${stepAmortizAjustada}"
                        onchange="actualizarCupon('${cupon.id}', 'amortizAjustada', this.value)" />
             </td>
             <td>
                 <input type="number" class="input-table" 
                        id="rentaNominal_${cupon.id}"
                        value="${cupon.rentaNominal || ''}" 
-                       step="0.0001"
+                       step="${stepRentaNominal}"
                        onchange="actualizarCupon('${cupon.id}', 'rentaNominal', this.value)" />
             </td>
             <td>
@@ -579,14 +511,14 @@ async function renderizarCupones() {
                 <input type="number" class="input-table" 
                        id="flujos_${cupon.id}"
                        value="${cupon.flujos || ''}" 
-                       step="0.00000001"
+                       step="${(typeof window.obtenerDecimalesAjustes === 'function' ? window.obtenerDecimalesAjustes() : 8) === 12 ? '0.000000000001' : '0.00000001'}"
                        readonly tabindex="-1" />
             </td>
             <td>
                 <input type="number" class="input-table" 
                        id="flujosDesc_${cupon.id}"
                        value="${cupon.flujosDesc || ''}" 
-                       step="0.00000001"
+                       step="${(typeof window.obtenerDecimalesAjustes === 'function' ? window.obtenerDecimalesAjustes() : 8) === 12 ? '0.000000000001' : '0.00000001'}"
                        readonly tabindex="-1" />
             </td>
             <td>
@@ -745,12 +677,6 @@ async function actualizarCupon(cuponId, campo, valor) {
         // Si cambió fechaInicio o fechaFinDev, puede haber cambiado el cupón vigente
         // Re-renderizar para actualizar los promedios de los cupones posteriores
         if (!ajusteCER && (campo === 'fechaInicio' || campo === 'fechaFinDev' || campo === 'fechaLiquid')) {
-            // Guardar en sessionStorage antes de renderizar
-            try {
-                sessionStorage.setItem('calculadora_cuponesData', JSON.stringify(cuponesData));
-            } catch (e) {
-                console.warn('[actualizarCupon] Error al guardar en sessionStorage:', e);
-            }
             // Re-renderizar para recalcular cupón vigente y promedios
             await renderizarCupones();
             return; // Salir temprano porque renderizarCupones ya recalcula todo
@@ -763,13 +689,6 @@ async function actualizarCupon(cuponId, campo, valor) {
         // Recalcular flujos después de actualizar valores derivados
         if (window.cuponesCalculos && typeof window.cuponesCalculos.recalcularFlujos === 'function') {
             window.cuponesCalculos.recalcularFlujos(cuponesData);
-        }
-        
-        // Guardar en sessionStorage
-        try {
-            sessionStorage.setItem('calculadora_cuponesData', JSON.stringify(cuponesData));
-        } catch (e) {
-            console.warn('[actualizarCupon] Error al guardar en sessionStorage:', e);
         }
     }
 }
@@ -797,11 +716,8 @@ function limpiarCupones() {
     cuponesData = [];
     cuponCounter = 1;
     
-    // Limpiar sessionStorage
+    // Limpiar solo el estado del formulario (no los cupones ya que no se guardan)
     try {
-        sessionStorage.removeItem('calculadora_cuponesData');
-        sessionStorage.removeItem('calculadora_cuponCounter');
-        sessionStorage.removeItem('calculadora_tablaVisible');
         sessionStorage.removeItem('calculadora_formState');
     } catch (e) {
         console.warn('[limpiarCupones] Error al limpiar sessionStorage:', e);
@@ -822,17 +738,9 @@ function setCuponesData(nuevosDatos) {
         }
     });
     
-    // Guardar en sessionStorage para persistencia entre solapas
-    try {
-        sessionStorage.setItem('calculadora_cuponesData', JSON.stringify(cuponesData));
-        sessionStorage.setItem('calculadora_cuponCounter', cuponCounter.toString());
-        sessionStorage.setItem('calculadora_tablaVisible', 'true');
-        // Guardar estado del formulario
-        if (typeof guardarEstadoFormulario === 'function') {
-            guardarEstadoFormulario();
-        }
-    } catch (e) {
-        console.warn('[setCuponesData] Error al guardar en sessionStorage:', e);
+    // Guardar estado del formulario (sin guardar cupones en sessionStorage)
+    if (typeof guardarEstadoFormulario === 'function') {
+        guardarEstadoFormulario();
     }
     
     renderizarCupones();

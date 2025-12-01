@@ -64,6 +64,41 @@
                             <input type="number" id="decimalesAjustes" min="0" max="12" value="8" style="width: 60px; padding: 4px 8px; border: 1px solid #dadce0; border-radius: 4px; font-size: 14px; text-align: center;" onchange="actualizarDecimalesAjustes()" />
                         </div>
                     </div>
+                    
+                    <!-- Panel de Resultados (oculto inicialmente, se muestra después de calcular TIR) -->
+                    <div id="panelResultados" style="display: none; margin-top: 24px;">
+                        <div class="card">
+                            <h3 style="font-size: 18px; font-weight: 500; margin-bottom: 16px; color: #1e8e3e;">Resultados</h3>
+                            
+                            <div style="display: flex; flex-wrap: nowrap; gap: 12px; overflow-x: auto;">
+                                <div class="resultado-item-horizontal">
+                                    <span class="resultado-label">Precio C+T</span>
+                                    <span class="resultado-valor" id="precioCT">-</span>
+                                </div>
+                                
+                                <!-- Solo para calculadoras con ajuste CER -->
+                                <div class="resultado-item-horizontal" id="precioCTAjustadoContainer" style="display: none;">
+                                    <span class="resultado-label">Precio C+T Ajustado</span>
+                                    <span class="resultado-valor" id="precioCTHoyAjustado">-</span>
+                                </div>
+                                
+                                <div class="resultado-item-horizontal">
+                                    <span class="resultado-label">Pagos Efect. Actualizados</span>
+                                    <span class="resultado-valor" id="pagosEfectActualizados">-</span>
+                                </div>
+                                
+                                <div class="resultado-item-horizontal" style="background: rgba(30, 142, 62, 0.15);">
+                                    <span class="resultado-label">Precio Ajustado - Pagos</span>
+                                    <span class="resultado-valor" id="precioCTAjustPagos">-</span>
+                                </div>
+                                
+                                <div class="resultado-item-horizontal" style="background: rgba(30, 142, 62, 0.15);">
+                                    <span class="resultado-label">Precio Técnico Venc.</span>
+                                    <span class="resultado-valor" id="precioTecnicoVencimiento">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Tabla de Cupones (oculta inicialmente) -->
@@ -332,6 +367,7 @@
     <script src="/js/calculadora/cupones/recalculos.js"></script>
     <script src="/js/calculadora/cupones/core.js"></script>
     <script src="/js/calculadora/cupones/calculoCupones.js"></script>
+    <script src="/js/calculadora/precios.js"></script>
     <script src="/js/calculadora/cupones/autocompletado.js"></script>
     <script src="/js/calculadora/cupones/calculos.js"></script>
     <script src="/js/calculadora/cupones/tir.js"></script>

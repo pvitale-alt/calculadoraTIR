@@ -47,8 +47,21 @@ function obtenerCoeficienteCEREmision() {
 }
 
 function obtenerCoeficienteCERCompra() {
-    const texto = document.getElementById('coefCERCompra')?.textContent || '';
-    return normalizarNumeroDesdeTexto(texto);
+    const elemento = document.getElementById('coefCERCompra');
+    const texto = elemento?.textContent || '';
+    const coeficiente = normalizarNumeroDesdeTexto(texto);
+    
+    // Log para verificar que se está obteniendo correctamente
+    if (elemento) {
+        console.log(`[obtenerCoeficienteCERCompra]`, {
+            elementoExiste: !!elemento,
+            textContent: texto,
+            coeficiente: coeficiente,
+            coeficienteCon12Decimales: coeficiente !== null ? coeficiente.toFixed(12) : 'null'
+        });
+    }
+    
+    return coeficiente;
 }
 
 function obtenerDecimalesAjustes() {
@@ -90,33 +103,103 @@ function recalcularFlujosCupones(cupones = window.cuponesModule?.getCuponesData?
     const precioCompra = obtenerPrecioCompra();
     const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
     const coeficienteCERCompra = ajusteCER ? obtenerCoeficienteCERCompra() : 1;
+    const decimalesAjustes = obtenerDecimalesAjustes();
+    const decimalesFlujos = decimalesAjustes === 12 ? 12 : 8;
 
-    cupones.forEach(cupon => {
+    console.log('💰 [recalcularFlujosCupones] Iniciando recálculo de flujos:', {
+        cantidadPartida: cantidadPartida,
+        precioCompra: precioCompra,
+        ajusteCER: ajusteCER,
+        coeficienteCERCompra: coeficienteCERCompra,
+        decimalesAjustes: decimalesAjustes,
+        decimalesFlujos: decimalesFlujos,
+        totalCupones: cupones.length
+    });
+
+    cupones.forEach((cupon, index) => {
         let flujoCalculado = null;
 
         if (cupon.id === 'inversion') {
             // Con ajuste CER: cantidad * precio * coeficienteCERCompra
             // Sin ajuste CER: cantidad * precio
             if (ajusteCER) {
+                // SIEMPRE recalcular el flujo con el coeficiente CER actualizado
                 flujoCalculado = calcularFlujoInversion(cantidadPartida, precioCompra, coeficienteCERCompra);
+                
+                // Log detallado para comparar con Excel
+                console.log(`  💰 Cupón 0 (inversion) - CÁLCULO DETALLADO:`, {
+                    cantidadPartida: cantidadPartida,
+                    precioCompra: precioCompra,
+                    coeficienteCERCompra: coeficienteCERCompra,
+                    calculo: `${cantidadPartida} * ${precioCompra} * ${coeficienteCERCompra}`,
+                    resultadoCalculado: flujoCalculado,
+                    resultadoCon12Decimales: flujoCalculado !== null ? flujoCalculado.toFixed(12) : 'null',
+                    resultadoCon15Decimales: flujoCalculado !== null ? flujoCalculado.toFixed(15) : 'null'
+                });
             } else {
                 // Sin ajuste CER: simplemente cantidad * precio (negativo porque es inversión)
                 if (cantidadPartida !== null && precioCompra !== null) {
                     flujoCalculado = -(cantidadPartida * precioCompra);
+                    // Log detallado para comparar con Excel
+                    console.log(`  💰 Cupón 0 (inversion) - CÁLCULO DETALLADO (sin CER):`, {
+                        cantidadPartida: cantidadPartida,
+                        precioCompra: precioCompra,
+                        calculo: `-(${cantidadPartida} * ${precioCompra})`,
+                        resultadoCalculado: flujoCalculado,
+                        resultadoCon12Decimales: flujoCalculado !== null ? flujoCalculado.toFixed(12) : 'null',
+                        resultadoCon15Decimales: flujoCalculado !== null ? flujoCalculado.toFixed(15) : 'null'
+                    });
                 }
             }
         } else {
-            const amortizacionAjustada = normalizarNumeroDesdeInput(cupon.amortizAjustada);
-            const rentaAjustada = normalizarNumeroDesdeInput(cupon.rentaAjustada);
+            const amortizacionAjustadaRaw = cupon.amortizAjustada;
+            const rentaAjustadaRaw = cupon.rentaAjustada;
+            const amortizacionAjustada = normalizarNumeroDesdeInput(amortizacionAjustadaRaw);
+            const rentaAjustada = normalizarNumeroDesdeInput(rentaAjustadaRaw);
+            
+            // Log detallado antes de calcular
+            console.log(`  💰 Cupón ${index} (${cupon.id}) - ANTES de calcular flujo:`, {
+                amortizacionAjustadaRaw: amortizacionAjustadaRaw,
+                amortizacionAjustada: amortizacionAjustada,
+                rentaAjustadaRaw: rentaAjustadaRaw,
+                rentaAjustada: rentaAjustada,
+                cantidadPartida: cantidadPartida
+            });
+            
             flujoCalculado = calcularFlujoCupon(cantidadPartida, amortizacionAjustada, rentaAjustada);
+            
+            // Log detallado después de calcular
+            console.log(`  💰 Cupón ${index} (${cupon.id}) - DESPUÉS de calcular flujo:`, {
+                flujoCalculado: flujoCalculado,
+                flujoCalculadoString: flujoCalculado !== null ? flujoCalculado.toString() : 'null',
+                flujoCon12Decimales: flujoCalculado !== null ? flujoCalculado.toFixed(12) : 'null',
+                flujoCon8Decimales: flujoCalculado !== null ? flujoCalculado.toFixed(8) : 'null'
+            });
         }
 
         if (flujoCalculado === null || !isFinite(flujoCalculado)) {
             actualizarCampoCupon(cupon, 'flujos', '');
+            // Limpiar también el valor numérico completo
+            cupon.flujosNumero = null;
         } else {
-            actualizarCampoCupon(cupon, 'flujos', formatearNumero(flujoCalculado, 8));
+            // Guardar el valor numérico completo para cálculos de TIR (sin pérdida de precisión)
+            cupon.flujosNumero = flujoCalculado;
+            
+            // Si los decimales de ajustes están en 12, usar 12 decimales para los flujos (mayor precisión para TIR)
+            const flujoFormateado = formatearNumero(flujoCalculado, decimalesFlujos);
+            actualizarCampoCupon(cupon, 'flujos', flujoFormateado);
+            
+            console.log(`  💰 Cupón ${index} (${cupon.id}) - Flujo formateado:`, {
+                flujoCalculado: flujoCalculado,
+                flujoCalculadoCon12Decimales: flujoCalculado.toFixed(12),
+                flujoFormateado: flujoFormateado,
+                decimalesUsados: decimalesFlujos,
+                flujosNumero: cupon.flujosNumero
+            });
         }
     });
+    
+    console.log('💰 [recalcularFlujosCupones] Recálculo de flujos completado');
 
     if (window.tirModule && typeof window.tirModule.actualizarFlujosDescontadosYSumatoria === 'function') {
         window.tirModule.actualizarFlujosDescontadosYSumatoria();
@@ -263,8 +346,15 @@ function recalcularValoresDerivados(cupones, opciones = {}) {
     const coeficienteCEREmision = ajusteCER ? (obtenerCoeficienteCEREmision() || 1) : 1;
     const decimalesAjustes = obtenerDecimalesAjustes();
     
+    console.log('🔄 [recalcularValoresDerivados] Iniciando recálculo de valores derivados:', {
+        ajusteCER: ajusteCER,
+        coeficienteCEREmision: coeficienteCEREmision,
+        decimalesAjustes: decimalesAjustes,
+        totalCupones: cupones.length
+    });
+    
     let residual = 100;
-    cupones.forEach(cupon => {
+    cupones.forEach((cupon, index) => {
         if (!cupon || cupon.id === 'inversion') {
             return;
         }
@@ -283,12 +373,27 @@ function recalcularValoresDerivados(cupones, opciones = {}) {
         
         const dayCount = normalizarNumeroDesdeInput(cupon.dayCountFactor) || 0;
         const rentaNominal = (rentaTNAValor || 0) * dayCount;
-        actualizarCampoCupon(cupon, 'rentaNominal', formatearNumero(rentaNominal, 5));
+        // Usar decimalesAjustes para formatear rentaNominal (respeta el campo "Decimales")
+        actualizarCampoCupon(cupon, 'rentaNominal', formatearNumero(rentaNominal, decimalesAjustes));
         
         const residualFactor = residualActual / 100;
         // Renta ajustada: con ajuste CER se multiplica por coeficiente, sin ajuste CER es igual a renta nominal * residualFactor
         const rentaAjustada = ajusteCER ? (rentaNominal * coeficienteCEREmision * residualFactor) : (rentaNominal * residualFactor);
         actualizarCampoCupon(cupon, 'rentaAjustada', formatearNumero(rentaAjustada, decimalesAjustes));
+        
+        // Log detallado para cada cupón
+        console.log(`  🔄 Cupón ${index} (${cupon.id}):`, {
+            amortizacionActual: amortizacionActual,
+            coeficienteCEREmision: coeficienteCEREmision,
+            amortizAjustada: amortizAjustada,
+            amortizAjustadaString: amortizAjustada.toString(),
+            rentaTNAValor: rentaTNAValor,
+            dayCount: dayCount,
+            rentaNominal: rentaNominal,
+            residualFactor: residualFactor,
+            rentaAjustada: rentaAjustada,
+            rentaAjustadaString: rentaAjustada.toString()
+        });
         
         // Calcular factor de actualización
         const factorActualizacion = calcularFactorActualizacion(cupon);
@@ -312,7 +417,9 @@ function recalcularValoresDerivados(cupones, opciones = {}) {
         residual = Math.max(0, residualActual - amortizacionActual);
     });
     
+    console.log('🔄 [recalcularValoresDerivados] Llamando a recalcularFlujosCupones...');
     recalcularFlujosCupones(cupones);
+    console.log('🔄 [recalcularValoresDerivados] Recalculo de flujos completado');
 }
 
 function aplicarValoresFinancierosEnCupones(cupones, opciones = {}) {

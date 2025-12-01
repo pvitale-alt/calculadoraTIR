@@ -471,8 +471,24 @@ async function actualizarCoeficientesCER() {
             cerCompra
         };
         
+        // Recalcular valores derivados con los nuevos coeficientes
+        console.log('[actualizarCoeficientesCER] Coeficientes actualizados, recalculando valores derivados...', {
+            coefCEREmision: coefCEREmision,
+            coefCERCompra: coefCERCompra
+        });
+        
         if (window.cuponesCalculos && window.cuponesCalculos.recalcularValoresDerivados && window.cuponesModule && window.cuponesModule.getCuponesData) {
-            window.cuponesCalculos.recalcularValoresDerivados(window.cuponesModule.getCuponesData());
+            const cupones = window.cuponesModule.getCuponesData();
+            console.log('[actualizarCoeficientesCER] Llamando a recalcularValoresDerivados con', cupones.length, 'cupones');
+            window.cuponesCalculos.recalcularValoresDerivados(cupones);
+            console.log('[actualizarCoeficientesCER] Recalculo de valores derivados completado');
+        } else {
+            console.warn('[actualizarCoeficientesCER] No se pudo recalcular valores derivados:', {
+                tieneCuponesCalculos: !!window.cuponesCalculos,
+                tieneRecalcularValoresDerivados: !!(window.cuponesCalculos && window.cuponesCalculos.recalcularValoresDerivados),
+                tieneCuponesModule: !!window.cuponesModule,
+                tieneGetCuponesData: !!(window.cuponesModule && window.cuponesModule.getCuponesData)
+            });
         }
     } catch (error) {
         console.error('Error al calcular coeficientes CER:', error);
@@ -560,12 +576,15 @@ async function refrescarTablaCupones() {
     let huboCambios = false;
     let huboCambiosInversion = false;
     
+    // Verificar si es calculadora con ajuste CER
+    const ajusteCERGlobal = document.getElementById('ajusteCER')?.checked || false;
+    
     for (const cupon of cuponesData) {
-        // Actualizar finalIntervalo de inversión siempre cuando cambia fecha valuación
+        // Actualizar finalIntervalo de inversión solo para calculadoras con ajuste CER
         if (cupon.id === 'inversion') {
-            // Para la inversión, recalcular finalIntervalo = fechaLiquid + intervaloFin
-            // Pero si fechaLiquid > fechaValuacion, usar fechaValuacion + intervaloFin
-            if (cupon.fechaLiquid) {
+            // SOLO para calculadoras CON ajuste CER: recalcular finalIntervalo cuando cambia fecha valuación
+            // Para calculadoras SIN ajuste CER, mantener finalIntervalo calculado desde fechaLiquid
+            if (ajusteCERGlobal && cupon.fechaLiquid) {
                 try {
                     const fechaLiquidDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(cupon.fechaLiquid));
                     
@@ -625,7 +644,9 @@ async function refrescarTablaCupones() {
         }
         
         // Verificar si fechaLiquid es mayor a fechaValuacion
-        if (cupon.fechaLiquid) {
+        // SOLO para calculadoras con ajuste CER se recalculan los intervalos usando fechaValuacion
+        // Para calculadoras SIN ajuste CER, los intervalos se mantienen (ya calculados desde fechas del cupón)
+        if (ajusteCERGlobal && cupon.fechaLiquid) {
             try {
                 const fechaLiquidDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(cupon.fechaLiquid));
                 
@@ -711,10 +732,11 @@ async function refrescarTablaCupones() {
 async function actualizarDecimalesAjustes() {
     console.log('[actualizarDecimalesAjustes] Actualizando decimales y refrescando tabla');
     
-    // Recalcular coeficientes CER con los nuevos decimales
+    // 1. Primero recalcular coeficientes CER con los nuevos decimales
     await actualizarCoeficientesCER();
     
-    // Recalcular todos los valores derivados (amortización ajustada, renta ajustada) con los nuevos decimales
+    // 2. Recalcular todos los valores derivados (amortización ajustada, renta ajustada, flujos)
+    // recalcularValoresDerivados ya llama a recalcularFlujosCupones internamente
     if (window.cuponesModule && window.cuponesModule.getCuponesData) {
         const cupones = window.cuponesModule.getCuponesData();
         if (cupones && cupones.length > 0) {
@@ -724,9 +746,21 @@ async function actualizarDecimalesAjustes() {
         }
     }
     
-    // Refrescar la tabla para mostrar los valores actualizados
+    // 3. Refrescar la tabla para mostrar los valores actualizados
     if (window.cuponesModule && typeof window.cuponesModule.renderizarCupones === 'function') {
         window.cuponesModule.renderizarCupones();
+    }
+    
+    // No guardar cupones en sessionStorage - deben regenerarse manualmente
+    
+    // 5. Resetear TIR ya que los flujos cambiaron
+    if (window.tirModule && typeof window.tirModule.resetTIR === 'function') {
+        window.tirModule.resetTIR();
+    }
+    
+    // 6. Recalcular precios para actualizar los decimales mostrados
+    if (window.preciosModule && typeof window.preciosModule.recalcularTodosPrecios === 'function') {
+        window.preciosModule.recalcularTodosPrecios();
     }
 }
 

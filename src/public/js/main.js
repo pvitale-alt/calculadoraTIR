@@ -43,7 +43,15 @@ function formatearFechaInput(fecha) {
         return fecha;
     }
     
-    // Si es un objeto Date, formatearlo correctamente sin conversión UTC
+    // Si ya es un objeto Date válido, usarlo directamente
+    if (fecha instanceof Date && !isNaN(fecha.getTime())) {
+        const year = fecha.getFullYear();
+        const month = String(fecha.getMonth() + 1).padStart(2, '0');
+        const day = String(fecha.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+    
+    // Si es un string en otro formato, intentar parsearlo
     const d = crearFechaDesdeString(fecha);
     if (!d || isNaN(d.getTime())) return '';
     
