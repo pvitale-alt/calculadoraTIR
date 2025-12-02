@@ -15,9 +15,8 @@
                 <div style="display: flex; flex-direction: column; gap: 24px; margin-bottom: 24px;">
                     <h1 class="page-title" style="margin: 0;">Valores CER</h1>
                     
-                    <div style="display: flex; justify-content: center; align-items: center; gap: 12px;">
-                        <!-- Buscador por intervalos -->
-                        <div style="display: flex; gap: 12px; align-items: center; padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 24px;">
+                        <div style="display: inline-flex; align-items: center; gap: 12px; padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid var(--border-color);">
                             <label style="font-size: 14px; color: var(--text-secondary);">Desde:</label>
                             <div class="date-input-wrapper" style="width: 120px;">
                                 <input type="text" class="input date-input" id="buscarDesdeCER" placeholder="DD-MM-AAAA" maxlength="10" />
@@ -29,7 +28,6 @@
                                         <line x1="3" y1="10" x2="21" y2="10"></line>
                                     </svg>
                                 </button>
-                                <div id="datePickerBuscarDesdeCER" class="date-picker-popup" style="display: none;"></div>
                             </div>
                             <label style="font-size: 14px; color: var(--text-secondary);">Hasta:</label>
                             <div class="date-input-wrapper" style="width: 120px;">
@@ -42,7 +40,6 @@
                                         <line x1="3" y1="10" x2="21" y2="10"></line>
                                     </svg>
                                 </button>
-                                <div id="datePickerBuscarHastaCER" class="date-picker-popup" style="display: none;"></div>
                             </div>
                             <a href="#" class="btn" onclick="event.preventDefault(); filtrarCERPorIntervalo();">Buscar</a>
                             <button type="button" onclick="limpiarFiltroCER()" title="Limpiar filtro" style="background: none; border: none; cursor: pointer; padding: 4px; border-radius: 50%; transition: background 0.2s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='#e8e8e8'" onmouseout="this.style.background='transparent'">
@@ -51,8 +48,7 @@
                                 </svg>
                             </button>
                         </div>
-                        
-                        <button class="btn btn-primary" onclick="abrirModalIntervalosCER()" id="btnCargarCER" style="min-width: 150px;">Consultar API</button>
+                        <button class="btn btn-primary" onclick="abrirModalIntervalosCER()" id="btnCargarCER" style="min-width: 150px;">Importar BCRA</button>
                     </div>
                 </div>
                 
@@ -80,7 +76,6 @@
                                             <line x1="3" y1="10" x2="21" y2="10"></line>
                                         </svg>
                                     </button>
-                                    <div id="datePickerDesdeCER" class="date-picker-popup" style="display: none;"></div>
                                 </div>
                             </div>
                             <div style="display: flex; gap: 8px; align-items: center;">
@@ -95,7 +90,6 @@
                                             <line x1="3" y1="10" x2="21" y2="10"></line>
                                         </svg>
                                     </button>
-                                    <div id="datePickerHastaCER" class="date-picker-popup" style="display: none;"></div>
                                 </div>
                             </div>
                         </div>
@@ -106,7 +100,7 @@
                     </div>
                 </div>
                 
-                <div id="cerTableContainer" style="display: none; margin: 0 auto; width: 100%; max-width: 600px;">
+                <div id="cerTableContainer" style="display: none; margin: 0 auto; width: 100%; max-width: 600px; padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid var(--border-color);">
                     <!-- Botón Exportar CSV -->
                     <div id="btnExportarCSVCERContainer" style="display: none; margin-bottom: 16px; text-align: right;">
                         <button class="btn btn-primary" onclick="abrirModalExportarCSV('cer')" style="display: inline-flex; align-items: center; gap: 8px;">
@@ -116,8 +110,8 @@
                             <span>Exportar CSV</span>
                         </button>
                     </div>
-                    <div style="overflow-x: auto;">
-                        <table class="cashflow-table" id="cerTable">
+                    <div style="overflow-x: auto; display: flex; justify-content: center;">
+                        <table class="cashflow-table" id="cerTable" style="margin: 0 auto;">
                             <thead>
                                 <tr>
                                     <th style="width: 120px !important; max-width: 120px !important; min-width: 120px !important; text-align: center !important;">Fecha</th>

@@ -161,28 +161,39 @@ const diasSemana = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'];
 
 function abrirDatePicker(inputId) {
     const input = document.getElementById(inputId);
-    if (!input) return;
+    if (!input) {
+        console.warn(`[abrirDatePicker] Input no encontrado: ${inputId}`);
+        return;
+    }
     
     const popupId = `datePicker${inputId.charAt(0).toUpperCase() + inputId.slice(1)}`;
     let popup = document.getElementById(popupId);
     
-    // Cerrar otros date pickers primero
+    // Cerrar otros date pickers primero - eliminarlos del DOM
     document.querySelectorAll('.date-picker-popup').forEach(p => {
-        if (p.id !== popupId) {
-            p.style.display = 'none';
+        if (p.id !== popupId && p.parentNode) {
+            p.remove();
         }
     });
+    
+    // Si el popup existe pero está dentro de un contenedor, moverlo al body
+    if (popup && popup.parentElement !== document.body) {
+        popup.remove();
+        popup = null;
+    }
     
     if (!popup) {
         popup = document.createElement('div');
         popup.id = popupId;
         popup.className = 'date-picker-popup';
-        // Asegurar que el z-index sea mayor que los modales (10000)
-        popup.style.zIndex = '10010';
+        // Asegurar que el z-index sea muy alto y siempre esté en el body
+        popup.style.zIndex = '99999';
+        popup.style.position = 'fixed';
         document.body.appendChild(popup);
     } else {
-        // Asegurar z-index cada vez que se muestra
-        popup.style.zIndex = '10010';
+        // Asegurar z-index y position cada vez que se muestra
+        popup.style.zIndex = '99999';
+        popup.style.position = 'fixed';
     }
     
     // Inicializar estado
@@ -215,11 +226,13 @@ function abrirDatePicker(inputId) {
     // Siempre mostrar el popup y renderizar
     renderizarDatePicker(popup);
     
-    // Calcular posición del popup basándose en la posición del input
+    // Calcular posición del popup basándose en la posición del input usando getBoundingClientRect
+    // Usar position: fixed con coordenadas de viewport (sin scroll)
     const inputRect = input.getBoundingClientRect();
     const popupWidth = 280; // min-width del popup
-    const popupHeight = 320; // altura aproximada del popup
+    const popupHeight = 350; // altura aproximada del popup (aumentada para incluir margen)
     
+    // Calcular posición inicial: debajo del input (usando coordenadas de viewport para position: fixed)
     let top = inputRect.bottom + 4;
     let left = inputRect.left;
     
@@ -229,9 +242,10 @@ function abrirDatePicker(inputId) {
     }
     
     // Ajustar si el popup se sale por abajo
-    if (top + popupHeight > window.innerHeight) {
+    if (inputRect.bottom + popupHeight > window.innerHeight) {
+        // Intentar mostrar arriba del input
         top = inputRect.top - popupHeight - 4;
-        // Si aún se sale por arriba, posicionar desde arriba
+        // Si aún se sale por arriba, posicionar desde arriba de la ventana
         if (top < 0) {
             top = 10;
         }
@@ -242,23 +256,74 @@ function abrirDatePicker(inputId) {
         left = 10;
     }
     
+    // Asegurar que el popup esté siempre visible
     popup.style.top = `${top}px`;
     popup.style.left = `${left}px`;
     popup.style.display = 'block';
+    popup.style.visibility = 'visible';
+    popup.style.opacity = '1';
     
-    // Registrar listener para cerrar al hacer clic fuera (solo una vez)
-    const cerrarHandler = (e) => {
-        // No cerrar si el clic es dentro del popup, en el input, o en el botón del calendario
-        if (popup.contains(e.target) || input.contains(e.target) || e.target.closest('.date-picker-icon-btn')) {
-            return;
+    // Forzar reflow para asegurar que se muestre
+    popup.offsetHeight;
+    
+    // Función para cerrar el popup y limpiar listeners
+    let cerrarHandler = null;
+    const cerrarPopup = () => {
+        // Limpiar listeners primero
+        if (cerrarHandler) {
+            document.removeEventListener('click', cerrarHandler, true);
+            document.removeEventListener('scroll', cerrarHandler, true);
+            cerrarHandler = null;
         }
-        popup.style.display = 'none';
-        document.removeEventListener('click', cerrarHandler);
+        
+        // Eliminar el popup completamente del DOM
+        if (popup && popup.parentNode) {
+            popup.remove();
+        }
+        
+        // Limpiar referencia
+        if (window.datePickerCloseHandlers) {
+            window.datePickerCloseHandlers.delete(popupId);
+        }
     };
     
-    // Remover listeners anteriores y agregar uno nuevo
+    // Remover listeners anteriores del mismo popup si existen
+    if (window.datePickerCloseHandlers && window.datePickerCloseHandlers.has(popupId)) {
+        const oldCerrar = window.datePickerCloseHandlers.get(popupId);
+        if (oldCerrar) {
+            oldCerrar();
+        }
+    }
+    
+    // Registrar listener para cerrar al hacer clic fuera
+    cerrarHandler = (e) => {
+        // Verificar si el popup aún existe en el DOM
+        if (!popup || !popup.parentNode) {
+            cerrarPopup();
+            return;
+        }
+        
+        // No cerrar si el clic es dentro del popup, en el input, o en el botón del calendario
+        const target = e.target;
+        if (popup.contains(target) || input.contains(target) || target.closest('.date-picker-icon-btn')) {
+            return;
+        }
+        
+        // Cerrar el popup (lo eliminará del DOM)
+        cerrarPopup();
+    };
+    
+    // Guardar referencia para poder cerrar desde seleccionarFecha
+    if (!window.datePickerCloseHandlers) {
+        window.datePickerCloseHandlers = new Map();
+    }
+    window.datePickerCloseHandlers.set(popupId, cerrarPopup);
+    
+    // Agregar listeners nuevos
+    // Usar capture phase para capturar clics antes de que lleguen a otros elementos
     setTimeout(() => {
-        document.addEventListener('click', cerrarHandler);
+        document.addEventListener('click', cerrarHandler, true);
+        document.addEventListener('scroll', cerrarHandler, true);
     }, 10);
 }
 
@@ -491,12 +556,34 @@ function seleccionarFecha(año, mes, dia) {
         input.dispatchEvent(new Event('change', { bubbles: true }));
     }
     
-    // Cerrar popup
+    // Cerrar popup inmediatamente eliminándolo del DOM
     const popupId = `datePicker${datePickerState.inputId.charAt(0).toUpperCase() + datePickerState.inputId.slice(1)}`;
     const popup = document.getElementById(popupId);
-    if (popup) {
-        popup.style.display = 'none';
-    }
+    
+    // Función para cerrar y eliminar el popup
+    const cerrarPopupAhora = () => {
+        // Limpiar listeners usando el handler guardado
+        if (window.datePickerCloseHandlers && window.datePickerCloseHandlers.has(popupId)) {
+            const cerrarPopup = window.datePickerCloseHandlers.get(popupId);
+            try {
+                cerrarPopup();
+            } catch (e) {
+                // Si hay error, eliminar directamente
+                if (popup && popup.parentNode) {
+                    popup.remove();
+                }
+                window.datePickerCloseHandlers.delete(popupId);
+            }
+        } else {
+            // Si no hay handler, eliminar directamente
+            if (popup && popup.parentNode) {
+                popup.remove();
+            }
+        }
+    };
+    
+    // Cerrar inmediatamente
+    cerrarPopupAhora();
     
     // NO limpiar inputId aquí para permitir reabrir el date picker
     // El inputId se limpiará cuando se abra otro date picker o cuando se cierre manualmente

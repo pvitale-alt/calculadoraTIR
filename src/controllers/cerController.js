@@ -20,11 +20,11 @@ const cerController = {
                     pagina = parseInt(req.query.pagina) || 1;
                     const offset = (pagina - 1) * porPagina;
 
-                    const countResult = await pool.query('SELECT COUNT(*) as total FROM cer WHERE id_variable = 30');
+                    const countResult = await pool.query('SELECT COUNT(*) as total FROM variables WHERE id_variable = 30');
                     total = parseInt(countResult.rows[0].total);
 
                     const result = await pool.query(
-                        'SELECT fecha, valor, id_variable as idVariable FROM cer WHERE id_variable = 30 ORDER BY fecha DESC LIMIT $1 OFFSET $2',
+                        'SELECT fecha, valor, id_variable as idVariable FROM variables WHERE id_variable = 30 ORDER BY fecha DESC LIMIT $1 OFFSET $2',
                         [porPagina, offset]
                     );
                     datos = result.rows;
@@ -89,7 +89,7 @@ const cerController = {
                 });
                 
                 const query = `
-                    INSERT INTO cer (fecha, valor, id_variable)
+                    INSERT INTO variables (fecha, valor, id_variable)
                     VALUES ${placeholders.join(', ')}
                     ON CONFLICT (fecha, id_variable) DO UPDATE SET
                         valor = EXCLUDED.valor
@@ -147,7 +147,7 @@ const cerController = {
                 }
                 
                 const result = await pool.query(
-                    'SELECT fecha, valor, id_variable as idVariable FROM cer WHERE fecha >= $1::date AND fecha <= $2::date AND id_variable = 30 ORDER BY fecha ASC',
+                    'SELECT fecha, valor, id_variable as idVariable FROM variables WHERE fecha >= $1::date AND fecha <= $2::date AND id_variable = 30 ORDER BY fecha ASC',
                     [desde, hasta]
                 );
                 return res.json({
@@ -157,7 +157,7 @@ const cerController = {
             }
 
             const result = await pool.query(
-                'SELECT fecha, valor, id_variable as idVariable FROM cer WHERE id_variable = 30 ORDER BY fecha DESC'
+                'SELECT fecha, valor, id_variable as idVariable FROM variables WHERE id_variable = 30 ORDER BY fecha DESC'
             );
 
             res.json({

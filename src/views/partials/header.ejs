@@ -1,10 +1,12 @@
 <header class="top-header">
-    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 56px; width: 100%;">
-        <!-- Tabs de navegación a la izquierda -->
-        <nav class="header-tabs" style="display: flex; align-items: center; justify-content: flex-start;">
-            <a href="/calculadora" class="header-tab <%= activeMenu === 'calculadora' ? 'active' : '' %>">
-                <span>Calculadora</span>
-            </a>
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 64px; width: 100%;">
+        <!-- Logo y Tabs de navegación a la izquierda -->
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <img src="/images/logo.png" alt="Logo Mercap" style="height: 30px; width: auto; display: block; opacity: 0.85;" onerror="this.style.display='none';" />
+            <nav class="header-tabs" style="display: flex; align-items: center; justify-content: flex-start;">
+                <a href="/calculadora" class="header-tab <%= activeMenu === 'calculadora' ? 'active' : '' %>">
+                    <span>Calculadora</span>
+                </a>
             <a href="/cer" class="header-tab <%= activeMenu === 'cer' ? 'active' : '' %>">
                 <span>CER</span>
             </a>
@@ -17,7 +19,8 @@
             <a href="/feriados" class="header-tab <%= activeMenu === 'feriados' ? 'active' : '' %>">
                 <span>Feriados</span>
             </a>
-        </nav>
+            </nav>
+        </div>
         
         <!-- Botones Guardar/Cargar (solo en página de calculadora) -->
         <% if (activeMenu === 'calculadora') { %>

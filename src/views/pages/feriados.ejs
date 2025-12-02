@@ -15,9 +15,8 @@
                 <div style="display: flex; flex-direction: column; gap: 24px; margin-bottom: 24px;">
                     <h1 class="page-title" style="margin: 0;">Feriados</h1>
                     
-                    <div style="display: flex; justify-content: center; align-items: center; gap: 12px;">
-                        <!-- Buscador por intervalos -->
-                        <div style="display: flex; gap: 12px; align-items: center; padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 24px;">
+                        <div style="display: inline-flex; align-items: center; gap: 12px; padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid var(--border-color);">
                             <label style="font-size: 14px; color: var(--text-secondary);">Desde:</label>
                             <div class="date-input-wrapper" style="width: 120px;">
                                 <input type="text" class="input date-input" id="buscarDesdeFeriados" placeholder="DD-MM-AAAA" maxlength="10" />
@@ -29,7 +28,6 @@
                                         <line x1="3" y1="10" x2="21" y2="10"></line>
                                     </svg>
                                 </button>
-                                <div id="datePickerBuscarDesdeFeriados" class="date-picker-popup" style="display: none;"></div>
                             </div>
                             <label style="font-size: 14px; color: var(--text-secondary);">Hasta:</label>
                             <div class="date-input-wrapper" style="width: 120px;">
@@ -42,7 +40,6 @@
                                         <line x1="3" y1="10" x2="21" y2="10"></line>
                                     </svg>
                                 </button>
-                                <div id="datePickerBuscarHastaFeriados" class="date-picker-popup" style="display: none;"></div>
                             </div>
                             <a href="#" class="btn" onclick="event.preventDefault(); filtrarFeriadosPorIntervalo();">Buscar</a>
                             <button type="button" onclick="limpiarFiltroFeriados()" title="Limpiar filtro" style="background: none; border: none; cursor: pointer; padding: 4px; border-radius: 50%; transition: background 0.2s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='#e8e8e8'" onmouseout="this.style.background='transparent'">
@@ -51,9 +48,10 @@
                                 </svg>
                             </button>
                         </div>
-                        
-                        <button class="btn btn-primary" onclick="abrirModalIntervalosFeriados()" id="btnCargarFeriados" style="min-width: 150px;">Consultar API</button>
-                        <button class="btn btn-primary" onclick="abrirModalNuevoFeriado()" id="btnNuevoFeriado" style="min-width: 150px;">Nuevo Feriado</button>
+                        <div style="display: flex; gap: 12px;">
+                            <button class="btn btn-primary" onclick="abrirModalIntervalosFeriados()" id="btnCargarFeriados" style="min-width: 150px;">Importar BCRA</button>
+                            <button class="btn btn-primary" onclick="abrirModalNuevoFeriado()" id="btnNuevoFeriado" style="min-width: 150px;">Nuevo Feriado</button>
+                        </div>
                     </div>
                 </div>
                 
@@ -78,7 +76,6 @@
                                             <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
                                         </svg>
                                     </button>
-                                    <div id="datePickerDesdeFeriados" class="date-picker-popup" style="display: none;"></div>
                                 </div>
                             </div>
                             <div style="display: flex; gap: 8px; align-items: center;">
@@ -90,7 +87,6 @@
                                             <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
                                         </svg>
                                     </button>
-                                    <div id="datePickerHastaFeriados" class="date-picker-popup" style="display: none;"></div>
                                 </div>
                             </div>
                         </div>
@@ -122,7 +118,6 @@
                                             <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
                                         </svg>
                                     </button>
-                                    <div id="datePickerNuevoFeriadoFecha" class="date-picker-popup" style="display: none;"></div>
                                 </div>
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 8px;">
@@ -137,9 +132,9 @@
                     </div>
                 </div>
                 
-                <div id="feriadosTableContainer" style="display: none; margin: 0 auto; max-width: 50%;">
-                    <div style="overflow-x: auto;">
-                        <table class="cashflow-table" id="feriadosTable">
+                <div id="feriadosTableContainer" style="display: none; margin: 0 auto; max-width: 50%; padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <div style="overflow-x: auto; display: flex; justify-content: center;">
+                        <table class="cashflow-table" id="feriadosTable" style="margin: 0 auto;">
                             <thead>
                                 <tr>
                                     <th style="width: 120px !important; max-width: 120px !important; min-width: 120px !important; text-align: center !important;">Fecha</th>
