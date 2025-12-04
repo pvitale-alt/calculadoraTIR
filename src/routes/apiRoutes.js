@@ -8,6 +8,8 @@ const tamarController = require('../controllers/tamarController');
 const badlarController = require('../controllers/badlarController');
 const feriadosController = require('../controllers/feriadosController');
 const calculadorasController = require('../controllers/calculadorasController');
+const inventarioController = require('../controllers/inventarioController');
+const multer = require('multer');
 
 // Obtener datos de CER
 router.get('/cer', async (req, res) => {
@@ -225,6 +227,10 @@ router.put('/calculadoras/:id', calculadorasController.actualizarCalculadora);
 router.delete('/calculadoras/:id', calculadorasController.eliminarCalculadora);
 router.get('/calculadoras', calculadorasController.obtenerCalculadoras);
 router.get('/calculadoras/:id', calculadorasController.cargarCalculadora);
+
+// Inventario FIFO
+const upload = multer({ storage: multer.memoryStorage() });
+router.post('/inventario/procesar', upload.single('archivo'), inventarioController.procesarInventario);
 
 module.exports = router;
 

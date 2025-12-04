@@ -12,20 +12,27 @@
     "build": "echo 'Build completado'",
     "vercel-build": "echo 'Vercel build completado'"
   },
-  "keywords": ["calculadora", "tir", "bonos", "cer", "tamar", "badlar", "finanzas"],
+  "keywords": [
+    "calculadora",
+    "tir",
+    "bonos",
+    "cer",
+    "tamar",
+    "badlar",
+    "finanzas"
+  ],
   "author": "Mercap Software",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.18.2",
+    "axios": "^1.6.0",
     "dotenv": "^16.3.1",
     "ejs": "^3.1.9",
+    "express": "^4.18.2",
+    "multer": "^2.0.2",
     "pg": "^8.11.3",
-    "axios": "^1.6.0"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
   }
 }
-
-
-

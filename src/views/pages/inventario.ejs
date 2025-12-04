@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Calculadora TIR</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <style>
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 24px;
+        }
+        .upload-area:hover {
+            border-color: var(--primary-color);
+            background: rgba(26, 115, 232, 0.05);
+        }
+        .upload-area.dragover {
+            border-color: var(--primary-color);
+            background: rgba(26, 115, 232, 0.1);
+        }
+        .partida-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--primary-color);
+        }
+        .partida-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .partida-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .partida-info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .partida-info-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        .partida-info-value {
+            font-size: 14px;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        .imputaciones-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        .imputaciones-table th {
+            background: #f1f3f4;
+            padding: 8px 12px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .imputaciones-table td {
+            padding: 8px 12px;
+            font-size: 13px;
+            border-bottom: 1px solid #f1f3f4;
+        }
+        .imputaciones-table tr:hover {
+            background: #f8f9fa;
+        }
+        .saldo-positivo {
+            color: #1e8e3e;
+            font-weight: 600;
+        }
+        .saldo-cero {
+            color: var(--text-secondary);
+        }
+        .saldo-negativo {
+            color: #d93025;
+            font-weight: 600;
+        }
+        .error-card {
+            background: #fce8e6;
+            border-left: 4px solid #d93025;
+            padding: 16px;
+            margin-bottom: 16px;
+            border-radius: 8px;
+        }
+        .error-title {
+            color: #d93025;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .error-message {
+            color: #5f6368;
+            font-size: 14px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        .imputacion-cantidad-diferente {
+            background: rgba(128, 128, 128, 0.1) !important;
+        }
+    </style>
+</head>
+<body>
+    <%- include('../partials/header') %>
+    
+    <div class="app-container">
+        <main class="main-content">
+            <div class="content-area">
+                <h1 class="page-title" style="margin-bottom: 24px;">Inventario FIFO</h1>
+                
+                <!-- Área de carga de archivo -->
+                <div class="card" style="margin-bottom: 24px;">
+                    <h3 style="font-size: 18px; font-weight: 500; margin-bottom: 16px;">Importar Excel</h3>
+                    <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-color); margin-bottom: 12px;">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p style="font-size: 16px; color: var(--text-primary); margin-bottom: 8px;">
+                            Haz clic para seleccionar un archivo Excel o arrastra y suelta aquí
+                        </p>
+                        <p style="font-size: 12px; color: var(--text-secondary);">
+                            Columnas esperadas: TIPO_MIN, TIPO_MOV, MINUTA_ORIGEN, CANTIDAD, FECHA (DD/MM/AAAA)
+                        </p>
+                    </div>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;" />
+                </div>
+
+                <!-- Estadísticas -->
+                <div id="statsContainer" style="display: none;">
+                    <div class="stats-container">
+                        <div class="stat-card">
+                            <div class="stat-label">Total Movimientos</div>
+                            <div class="stat-value" id="statTotalMovimientos">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Total Partidas</div>
+                            <div class="stat-value" id="statTotalPartidas">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Errores</div>
+                            <div class="stat-value" id="statErrores" style="color: #d93025;">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Errores -->
+                <div id="erroresContainer" style="display: none;"></div>
+
+                <!-- Partidas -->
+                <div id="partidasContainer" style="display: none;"></div>
+
+                <!-- Loading -->
+                <div id="loadingContainer" class="loading" style="display: none;">
+                    <p>Procesando archivo Excel...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/inventario.js"></script>
+</body>
+</html>
+
+
