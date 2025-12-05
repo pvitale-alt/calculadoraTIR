@@ -223,8 +223,15 @@ function mostrarResultados(data) {
                                     ${partida.imputaciones.map(imp => {
                                         const impSaldoClass = imp.saldoDespues > 0 ? 'saldo-positivo' : 
                                                              imp.saldoDespues === 0 ? 'saldo-cero' : 'saldo-negativo';
-                                        const cantidadOriginal = imp.cantidadOriginal !== undefined ? imp.cantidadOriginal : imp.cantidad;
+                                        let cantidadOriginal = imp.cantidadOriginal !== undefined ? imp.cantidadOriginal : imp.cantidad;
                                         const cantidadImputada = imp.cantidad;
+                                        
+                                        // Si es un egreso, la cantidad original debe mostrarse como negativa
+                                        const esEgreso = imp.tipoMov === 'E';
+                                        if (esEgreso && cantidadOriginal > 0) {
+                                            cantidadOriginal = -cantidadOriginal;
+                                        }
+                                        
                                         const cantidadesDifieren = Math.abs(cantidadOriginal) !== Math.abs(cantidadImputada);
                                         const rowClass = cantidadesDifieren ? 'imputacion-cantidad-diferente' : '';
                                         

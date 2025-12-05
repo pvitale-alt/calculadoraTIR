@@ -169,12 +169,31 @@ const inventarioController = {
                 });
             };
 
+            // Función auxiliar para verificar si un OCT tiene pata futuro en la misma fecha
+            const tienePataFuturoMismaFecha = (mov, todosMovimientos) => {
+                // Para OCT, buscar si hay un movimiento OCT del tipo opuesto en la misma fecha
+                if (mov.tipoMin.toUpperCase() === 'OCT') {
+                    return todosMovimientos.some(m => {
+                        const mismaFecha = m.fecha && mov.fecha &&
+                            m.fecha.getFullYear() === mov.fecha.getFullYear() &&
+                            m.fecha.getMonth() === mov.fecha.getMonth() &&
+                            m.fecha.getDate() === mov.fecha.getDate();
+                        return mismaFecha &&
+                               m.tipoMin.toUpperCase() === 'OCT' &&
+                               m.tipoMov !== mov.tipoMov &&
+                               m !== mov;
+                    });
+                }
+                return false;
+            };
+
             // Función para obtener la categoría y subcategoría de un movimiento
             const obtenerCategoria = (mov, todosMovimientos) => {
                 const esIngreso = mov.tipoMov === 'I';
                 const esEgreso = mov.tipoMov === 'E';
                 const tienePataMismaFecha = tienePataPresenteMismaFecha(mov, todosMovimientos);
                 const tienePataDistintaFecha = tienePataFuturaDistintaFecha(mov, todosMovimientos);
+                const tieneOCTPataFuturoMismaFecha = tienePataFuturoMismaFecha(mov, todosMovimientos);
                 const tipoMin = mov.tipoMin.toUpperCase();
 
                 // A - Ingresos (Contados)
@@ -211,8 +230,8 @@ const inventarioController = {
                     }
                 }
 
-                // C - Transferencias de ingreso
-                if (esIngreso && (tipoMin === 'TRFU' || tipoMin === 'TRANSFERENCIA')) {
+                // C - Transferencias de ingreso: (TRFU, TRFS, TRFC) Saldo, Custodia y Cuenta
+                if (esIngreso && (tipoMin === 'TRFS' || tipoMin === 'TRFU' || tipoMin === 'TRFC')) {
                     return { categoria: 'C', subcategoria: 1, orden: 8 };
                 }
 
@@ -248,87 +267,114 @@ const inventarioController = {
                     }
                 }
 
-                // G - Egresos Futuros (Patas futuro de movimientos que generan partida y patas contado con pata futura a distinta fecha que pata contado)
-                // Solo egresos que NO tienen pata misma fecha (ya que esos van en D)
-                if (esEgreso && !tienePataMismaFecha) {
-                    // 1 - PF (Egreso/Pata futuro)
-                    if (tipoMin === 'PF') {
-                        return { categoria: 'G', subcategoria: 1, orden: 16 };
-                    }
-                    // 2 - PA (Egreso/Pata futuro)
-                    if (tipoMin === 'PA') {
-                        return { categoria: 'G', subcategoria: 2, orden: 17 };
-                    }
-                    // 3 - Préstamo (Egreso/Pata contado)
-                    if (tipoMin === 'PRESTAMO' || tipoMin === 'PRÉSTAMO' || tipoMin === 'PREST') {
-                        return { categoria: 'G', subcategoria: 3, orden: 18 };
-                    }
-                    // 4 - PP (Egreso/Pata contado)
-                    if (tipoMin === 'PP') {
-                        return { categoria: 'G', subcategoria: 4, orden: 19 };
-                    }
-                    // 5 - OCT (Egreso/Pata contado)
-                    if (tipoMin === 'OCT') {
-                        return { categoria: 'G', subcategoria: 5, orden: 20 };
-                    }
-                }
-
-                // H - Partidas manuales
-                // Si hay un tipo específico para partidas manuales, se puede agregar aquí
-                // Por ahora, si no hay un tipo específico, esta categoría queda vacía
-                // Si se necesita agregar tipos específicos, se puede hacer aquí
-
-                // I - Bloqueos/Garantías
-                if (tipoMin === 'BLOQUEO' || tipoMin === 'GARANTIA' || tipoMin === 'GARANTÍA' || tipoMin === 'BLOQ' || tipoMin === 'GAR') {
-                    // 1 - Ingreso garantías/bloqueos
-                    if (esIngreso) {
-                        return { categoria: 'I', subcategoria: 1, orden: 21 };
-                    }
-                    // 2 - Egreso garantías/bloqueos
-                    if (esEgreso) {
-                        return { categoria: 'I', subcategoria: 2, orden: 22 };
-                    }
-                }
-
-                // J - Egresos (Contados) - solo los que no fueron clasificados en D, G o I
-                if (esEgreso) {
-                    // Verificar que no haya sido clasificado en D, G o I
-                    const yaClasificadoEnDGI = 
-                        (tienePataMismaFecha && (tipoMin === 'PRESTAMO' || tipoMin === 'PRÉSTAMO' || tipoMin === 'PREST' || tipoMin === 'PP' || tipoMin === 'OCT')) || // D
-                        (!tienePataMismaFecha && (tipoMin === 'PF' || tipoMin === 'PA' || tipoMin === 'PRESTAMO' || tipoMin === 'PRÉSTAMO' || tipoMin === 'PREST' || tipoMin === 'PP' || tipoMin === 'OCT')) || // G
-                        (tipoMin === 'BLOQUEO' || tipoMin === 'GARANTIA' || tipoMin === 'GARANTÍA' || tipoMin === 'BLOQ' || tipoMin === 'GAR'); // I
-                    
-                    if (!yaClasificadoEnDGI) {
-                        // 1 - Venta
-                        if (tipoMin === 'VENTA' || tipoMin === 'V') {
-                            return { categoria: 'J', subcategoria: 1, orden: 23 };
-                        }
-                        // 2 - Transferencia
-                        if (tipoMin === 'TRFU' || tipoMin === 'TRANSFERENCIA') {
-                            return { categoria: 'J', subcategoria: 2, orden: 24 };
-                        }
-                        // 3 - Egreso
-                        if (tipoMin === 'EGRESO' || tipoMin === 'EGR') {
-                            return { categoria: 'J', subcategoria: 3, orden: 25 };
-                        }
-                        // 4 - Demás movimientos que sean egresos
-                        return { categoria: 'J', subcategoria: 4, orden: 26 };
-                    }
-                }
-
-                // F - Demás movimientos que sean ingresos (solo los que no fueron clasificados en A, B, C o E)
-                // Esta categoría captura ingresos que no entraron en A, B, C o E
+                // F - Demás movimientos que sean ingresos
                 if (esIngreso) {
                     // Verificar que no haya sido clasificado en A, B, C o E
                     const yaClasificado = 
                         (tipoMin === 'INGR' || tipoMin === 'ING' || tipoMin === 'C') || // A
                         (!tienePataMismaFecha && (tipoMin === 'OCT' || tipoMin === 'PP' || tipoMin === 'PRESTAMO' || tipoMin === 'PRÉSTAMO' || tipoMin === 'PREST' || tipoMin === 'PA' || tipoMin === 'PF')) || // B
-                        (tipoMin === 'TRFU' || tipoMin === 'TRANSFERENCIA') || // C
+                        (tipoMin === 'TRFS' || tipoMin === 'TRFU' || tipoMin === 'TRFC') || // C (solo ingresos)
                         (tienePataMismaFecha && (tipoMin === 'PRESTAMO' || tipoMin === 'PRÉSTAMO' || tipoMin === 'PREST' || tipoMin === 'PP' || tipoMin === 'OCT')); // E
                     
                     if (!yaClasificado) {
                         return { categoria: 'F', subcategoria: 1, orden: 15 };
                     }
+                }
+
+                // G - Egresos Futuros (Patas futuro de movimientos que generan partida y patas contado con pata futura a distinta fecha que pata contado)
+                if (esEgreso && !tienePataMismaFecha) {
+                    // 1 - Préstamo (Egreso/Pata contado)
+                    if (tipoMin === 'PRESTAMO' || tipoMin === 'PRÉSTAMO' || tipoMin === 'PREST') {
+                        return { categoria: 'G', subcategoria: 1, orden: 16 };
+                    }
+                    // 2 - PP (Egreso/Pata contado)
+                    if (tipoMin === 'PP') {
+                        return { categoria: 'G', subcategoria: 2, orden: 17 };
+                    }
+                    // 3 - OCT (Egreso/Pata contado) - solo si tiene pata futuro misma fecha (si no, va a J.3)
+                    if (tipoMin === 'OCT' && tieneOCTPataFuturoMismaFecha) {
+                        return { categoria: 'G', subcategoria: 3, orden: 18 };
+                    }
+                }
+
+                // H - Partidas manuales
+                if (tipoMin === 'PARTIDA' || tipoMin === 'PARTIDA_MANUAL' || tipoMin === 'PM') {
+                    return { categoria: 'H', subcategoria: 1, orden: 19 };
+                }
+
+                // I - Bloqueos/Garantías
+                if (tipoMin === 'BLOQUEO' || tipoMin === 'GARANTIA' || tipoMin === 'GARANTÍA' || tipoMin === 'BLOQ' || tipoMin === 'GAR') {
+                    // 1 - Ingreso garantías/bloqueos
+                    if (esIngreso) {
+                        return { categoria: 'I', subcategoria: 1, orden: 20 };
+                    }
+                    // 2 - Egreso garantías/bloqueos
+                    if (esEgreso) {
+                        return { categoria: 'I', subcategoria: 2, orden: 21 };
+                    }
+                }
+
+                // J (G') - Egresos Futuros (Patas futuro de movimientos que generan partida y patas contado con pata futura a distinta fecha que pata contado)
+                if (esEgreso && !tienePataMismaFecha) {
+                    // 1 - PF (Egreso/Pata futuro)
+                    if (tipoMin === 'PF') {
+                        return { categoria: 'J', subcategoria: 1, orden: 22 };
+                    }
+                    // 2 - PA (Egreso/Pata futuro)
+                    if (tipoMin === 'PA') {
+                        return { categoria: 'J', subcategoria: 2, orden: 23 };
+                    }
+                    // 3 - OCT Venta (QUE NO TENGA PATA FUTURO EN MISMA FECHA)
+                    if (tipoMin === 'OCT' && !tieneOCTPataFuturoMismaFecha) {
+                        return { categoria: 'J', subcategoria: 3, orden: 24 };
+                    }
+                }
+
+                // K - Egresos (Contados)
+                if (esEgreso) {
+                    // Verificar que no haya sido clasificado en D, G, I o J
+                    // Nota: C no se aplica aquí porque es solo para ingresos
+                    const yaClasificadoEnDGJI = 
+                        (tienePataMismaFecha && (tipoMin === 'PRESTAMO' || tipoMin === 'PRÉSTAMO' || tipoMin === 'PREST' || tipoMin === 'PP' || tipoMin === 'OCT')) || // D
+                        (!tienePataMismaFecha && ((tipoMin === 'PRESTAMO' || tipoMin === 'PRÉSTAMO' || tipoMin === 'PREST' || tipoMin === 'PP') || (tipoMin === 'OCT' && tieneOCTPataFuturoMismaFecha))) || // G
+                        (tipoMin === 'BLOQUEO' || tipoMin === 'GARANTIA' || tipoMin === 'GARANTÍA' || tipoMin === 'BLOQ' || tipoMin === 'GAR') || // I
+                        (!tienePataMismaFecha && (tipoMin === 'PF' || tipoMin === 'PA' || (tipoMin === 'OCT' && !tieneOCTPataFuturoMismaFecha))); // J
+                    
+                    if (!yaClasificadoEnDGJI) {
+                        // 1 - Venta
+                        if (tipoMin === 'VENTA' || tipoMin === 'V') {
+                            return { categoria: 'K', subcategoria: 1, orden: 25 };
+                        }
+                        // 2 - Transferencia (incluye TRFS, TRFU, TRFC para egresos, y TRANSFERENCIA genérica)
+                        if (tipoMin === 'TRFS' || tipoMin === 'TRFU' || tipoMin === 'TRFC' || tipoMin === 'TRANSFERENCIA') {
+                            return { categoria: 'K', subcategoria: 2, orden: 26 };
+                        }
+                        // 3 - Egreso
+                        if (tipoMin === 'EGRESO' || tipoMin === 'EGR') {
+                            return { categoria: 'K', subcategoria: 3, orden: 27 };
+                        }
+                    }
+                }
+
+                // L - Demás movimientos que sean egresos
+                if (esEgreso) {
+                    // Verificar que no haya sido clasificado en D, G, I, J o K
+                    // Nota: C no se aplica aquí porque es solo para ingresos
+                    const yaClasificadoEnDGJIK = 
+                        (tienePataMismaFecha && (tipoMin === 'PRESTAMO' || tipoMin === 'PRÉSTAMO' || tipoMin === 'PREST' || tipoMin === 'PP' || tipoMin === 'OCT')) || // D
+                        (!tienePataMismaFecha && ((tipoMin === 'PRESTAMO' || tipoMin === 'PRÉSTAMO' || tipoMin === 'PREST' || tipoMin === 'PP') || (tipoMin === 'OCT' && tieneOCTPataFuturoMismaFecha))) || // G
+                        (tipoMin === 'BLOQUEO' || tipoMin === 'GARANTIA' || tipoMin === 'GARANTÍA' || tipoMin === 'BLOQ' || tipoMin === 'GAR') || // I
+                        (!tienePataMismaFecha && (tipoMin === 'PF' || tipoMin === 'PA' || (tipoMin === 'OCT' && !tieneOCTPataFuturoMismaFecha))) || // J
+                        (tipoMin === 'VENTA' || tipoMin === 'V' || tipoMin === 'TRFS' || tipoMin === 'TRFU' || tipoMin === 'TRFC' || tipoMin === 'TRANSFERENCIA' || tipoMin === 'EGRESO' || tipoMin === 'EGR'); // K
+                    
+                    if (!yaClasificadoEnDGJIK) {
+                        return { categoria: 'L', subcategoria: 1, orden: 28 };
+                    }
+                }
+
+                // M - Imputaciones manuales
+                if (tipoMin === 'IMPUTACION' || tipoMin === 'IMPUTACIÓN' || tipoMin === 'IMPUT' || tipoMin === 'IMPUT_MANUAL') {
+                    return { categoria: 'M', subcategoria: 1, orden: 29 };
                 }
 
                 // Por defecto, mantener orden original
@@ -461,7 +507,22 @@ function procesarFIFO(movimientos) {
     
     // Almacenar movimientos procesados por fecha y MINUTA_ORIGEN para búsqueda posterior
     const movimientosPorFechaYMinuta = {};
+    
+    // Almacenar egresos PP que ya fueron procesados retroactivamente (desde un ingreso PP)
+    // para evitar procesarlos dos veces
+    const egresosPPProcesadosRetroactivamente = new Set();
+    
+    // Almacenar ingresos PP que ya fueron procesados retroactivamente (cuando se procesó su egreso PP primero)
+    // para evitar procesarlos dos veces
+    const ingresosPPProcesadosRetroactivamente = new Set();
+    
+    // Función auxiliar para formatear números con separador de miles
+    const formatearNumero = (num) => {
+        return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    };
 
+    let fechaAnterior = null;
+    
     for (let i = 0; i < movimientos.length; i++) {
         const mov = movimientos[i];
         try {
@@ -472,9 +533,93 @@ function procesarFIFO(movimientos) {
             
             indiceUltimoProcesado = i;
 
-            // Log para debug del orden de procesamiento
-            console.log(`[PROCESANDO] ${mov.tipoMin} | ${mov.tipoMov} | ${mov.minutaOrigen} | ${mov.cantidad} | ${mov.fechaStr}`);
-            console.log(`[ESTADO] Partidas actuales: ${partidas.length}, Saldo total: ${partidas.reduce((sum, p) => sum + p.saldo, 0)}`);
+            // Detectar cambio de día y mostrar saldo inicial del día
+            const fechaActual = mov.fecha ? 
+                `${mov.fecha.getFullYear()}-${String(mov.fecha.getMonth() + 1).padStart(2, '0')}-${String(mov.fecha.getDate()).padStart(2, '0')}` : 
+                null;
+            
+            if (fechaActual && fechaActual !== fechaAnterior) {
+                // Calcular saldo inicial del día (suma de todas las partidas disponibles al inicio del día)
+                // Al inicio del día, el saldo actual de las partidas es el saldo inicial (aún no se han procesado movimientos del día)
+                const inicioDia = new Date(mov.fecha.getFullYear(), mov.fecha.getMonth(), mov.fecha.getDate());
+                const saldoInicialDia = partidas
+                    .filter(p => {
+                        if (p.saldo <= 0 || p.tipoMin === 'PA') return false;
+                        if (!p.fecha) return false;
+                        // Partidas creadas antes del inicio del día actual
+                        return p.fecha.getTime() < inicioDia.getTime();
+                    })
+                    .reduce((sum, p) => {
+                        // Al inicio del día, el saldo actual es el saldo inicial (aún no hay imputaciones del día)
+                        // Pero por si acaso, revertimos cualquier imputación del día actual que pueda existir
+                        const imputacionesDelDia = p.imputaciones.filter(imp => {
+                            if (!imp.fecha || !mov.fecha) return false;
+                            return imp.fecha.getFullYear() === mov.fecha.getFullYear() &&
+                                   imp.fecha.getMonth() === mov.fecha.getMonth() &&
+                                   imp.fecha.getDate() === mov.fecha.getDate();
+                        });
+                        
+                        if (imputacionesDelDia.length > 0) {
+                            // Revertir imputaciones del día para obtener el saldo inicial
+                            const saldoInicial = p.saldo - imputacionesDelDia
+                                .filter(imp => imp.cantidad > 0) // Ingresos aumentan el saldo, revertir restando
+                                .reduce((s, imp) => s + imp.cantidad, 0) +
+                                imputacionesDelDia
+                                .filter(imp => imp.cantidad < 0) // Egresos reducen el saldo, revertir sumando
+                                .reduce((s, imp) => s - imp.cantidad, 0);
+                            return sum + saldoInicial;
+                        }
+                        // No hay imputaciones del día, el saldo actual es el inicial
+                        return sum + p.saldo;
+                    }, 0);
+                
+                const cantidadPartidas = partidas.filter(p => {
+                    if (p.saldo <= 0 || p.tipoMin === 'PA') return false;
+                    if (!p.fecha) return false;
+                    const inicioDia = new Date(mov.fecha.getFullYear(), mov.fecha.getMonth(), mov.fecha.getDate());
+                    return p.fecha.getTime() < inicioDia.getTime();
+                }).length;
+                
+                // Si había un día anterior, mostrar su saldo final con resumen de movimientos
+                if (fechaAnterior !== null) {
+                    const saldoFinalDiaAnterior = partidas
+                        .filter(p => p.saldo > 0 && p.tipoMin !== 'PA')
+                        .reduce((sum, p) => sum + p.saldo, 0);
+                    const fechaAnteriorStr = movimientos.find(m => {
+                        if (!m.fecha) return false;
+                        const fechaM = `${m.fecha.getFullYear()}-${String(m.fecha.getMonth() + 1).padStart(2, '0')}-${String(m.fecha.getDate()).padStart(2, '0')}`;
+                        return fechaM === fechaAnterior;
+                    })?.fechaStr || fechaAnterior;
+                    
+                    // Calcular totales de ingresos y egresos del día anterior
+                    const movimientosDiaAnterior = movimientos.filter(m => {
+                        if (!m.fecha) return false;
+                        const fechaM = `${m.fecha.getFullYear()}-${String(m.fecha.getMonth() + 1).padStart(2, '0')}-${String(m.fecha.getDate()).padStart(2, '0')}`;
+                        return fechaM === fechaAnterior;
+                    });
+                    
+                    const totalIngresosDia = movimientosDiaAnterior
+                        .filter(m => m.tipoMov === 'I')
+                        .reduce((sum, m) => sum + m.cantidad, 0);
+                    
+                    const totalEgresosDia = movimientosDiaAnterior
+                        .filter(m => m.tipoMov === 'E')
+                        .reduce((sum, m) => sum + m.cantidad, 0);
+                    
+                    console.log(`[FIN DÍA] ${fechaAnteriorStr} - Saldo final disponible: ${saldoFinalDiaAnterior.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} | Ingresos: ${totalIngresosDia.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} | Egresos: ${totalEgresosDia.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`);
+                }
+                
+                console.log(`\n[INICIO DÍA] ${mov.fechaStr} - Saldo inicial disponible: ${saldoInicialDia.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} (${cantidadPartidas} partida(s))`);
+                fechaAnterior = fechaActual;
+            }
+
+            // Log de saldo después de cada egreso para rastrear discrepancias
+            if (mov.tipoMov === 'E') {
+                const saldoActual = partidas
+                    .filter(p => p.saldo > 0 && p.tipoMin !== 'PA')
+                    .reduce((sum, p) => sum + p.saldo, 0);
+                console.log(`[EGRESO] ${mov.tipoMin} | ${mov.minutaOrigen} | ${mov.cantidad.toLocaleString('es-AR')} | Saldo después: ${saldoActual.toLocaleString('es-AR')}`);
+            }
 
             if (mov.tipoMov === 'I') {
                 // INGRESO: Crear nueva partida
@@ -492,211 +637,78 @@ function procesarFIFO(movimientos) {
                         imputaciones: []
                     };
                     partidas.push(partida);
+                    
+                    // Log de ingreso (no PP)
+                    const saldoDespuesIngreso = partidas
+                        .filter(p => p.saldo > 0 && p.tipoMin !== 'PA')
+                        .reduce((sum, p) => sum + p.saldo, 0);
+                    console.log(`[INGRESO] ${mov.tipoMin} | ${mov.minutaOrigen} | ${mov.cantidad.toLocaleString('es-AR')} | Saldo después: ${saldoDespuesIngreso.toLocaleString('es-AR')}`);
                 } else if (mov.tipoMin === 'PP') {
                     // PP como INGRESO: debe matchear con el egreso PP del mismo MINUTA_ORIGEN
-                    console.log(`[PP INGRESO] Procesando ingreso PP ${mov.minutaOrigen}, cantidad: ${mov.cantidad}, fecha: ${mov.fechaStr}`);
-                    console.log(`[PP INGRESO] Distribuciones disponibles:`, Object.keys(distribucionesPP));
-                    let distribucion = distribucionesPP[mov.minutaOrigen];
+                    // NUEVA LÓGICA SIMPLIFICADA: NO procesar retroactivamente ingresos PP
+                    // Solo procesar cuando lleguen a su posición normal en el orden
                     
-                    if (distribucion && distribucion.length > 0) {
-                        console.log(`[PP INGRESO] ✅ Distribución encontrada para ${mov.minutaOrigen}: ${distribucion.length} partidas, cantidad total: ${distribucion.reduce((sum, d) => sum + d.cantidad, 0)}`);
-                    } else {
-                        console.log(`[PP INGRESO] ❌ No se encontró distribución guardada para ${mov.minutaOrigen}`);
+                    // Si este ingreso PP ya fue procesado retroactivamente, saltarlo
+                    if (ingresosPPProcesadosRetroactivamente.has(mov.minutaOrigen)) {
+                        const distribucionExistente = distribucionesPP[mov.minutaOrigen];
+                        if (!distribucionExistente || distribucionExistente.length === 0) {
+                            errores.push({
+                                movimiento: mov,
+                                mensaje: `El ingreso PP ${mov.minutaOrigen} fue procesado retroactivamente pero no se encontró su distribución guardada`
+                            });
+                            break;
+                        }
+                        const saldoActual = partidas
+                            .filter(p => p.saldo > 0 && p.tipoMin !== 'PA')
+                            .reduce((sum, p) => sum + p.saldo, 0);
+                        console.log(`[INGRESO PP] ${mov.minutaOrigen} | Ya procesado retroactivamente, saltando | Saldo: ${saldoActual.toLocaleString('es-AR')}`);
+                        delete distribucionesPP[mov.minutaOrigen];
+                        continue;
                     }
                     
+                    let distribucion = distribucionesPP[mov.minutaOrigen];
+                    
                     if (!distribucion || distribucion.length === 0) {
-                        // Si no se encuentra la distribución guardada, buscar el egreso PP
-                        console.log(`[PP INGRESO] No se encontró distribución guardada para ${mov.minutaOrigen}, buscando egreso PP`);
-                        
+                        // Buscar el egreso PP correspondiente en movimientos ANTERIORES
                         const indiceActual = movimientos.indexOf(mov);
-                        
-                        // PRIMERO: Buscar el egreso PP con el mismo MINUTA_ORIGEN en el MISMO DÍA
-                        console.log(`[PP INGRESO] Buscando egreso PP del mismo día para ${mov.minutaOrigen}, fecha: ${mov.fechaStr}`);
-                        const egresoPPDelMismoDia = movimientos.find(m => {
-                            const mismaFecha = m.fecha && mov.fecha &&
-                                m.fecha.getFullYear() === mov.fecha.getFullYear() &&
-                                m.fecha.getMonth() === mov.fecha.getMonth() &&
-                                m.fecha.getDate() === mov.fecha.getDate();
-                            const esPPEgreso = m.tipoMin === 'PP' && m.tipoMov === 'E';
-                            const mismoMinutaOrigen = m.minutaOrigen === mov.minutaOrigen;
-                            const noEsElMismo = m !== mov;
-                            
-                            return mismaFecha && esPPEgreso && mismoMinutaOrigen && noEsElMismo;
-                        });
-                        
-                        if (egresoPPDelMismoDia) {
-                            console.log(`[PP INGRESO] ✅ Encontrado egreso PP del mismo día: ${egresoPPDelMismoDia.fechaStr} | ${egresoPPDelMismoDia.minutaOrigen} | ${egresoPPDelMismoDia.cantidad}`);
-                        } else {
-                            // Log de todos los movimientos PP E del mismo día para debug
-                            const movimientosPPEDelDia = movimientos.filter(m => {
-                                const mismaFecha = m.fecha && mov.fecha &&
-                                    m.fecha.getFullYear() === mov.fecha.getFullYear() &&
-                                    m.fecha.getMonth() === mov.fecha.getMonth() &&
-                                    m.fecha.getDate() === mov.fecha.getDate();
-                                return mismaFecha && m.tipoMin === 'PP' && m.tipoMov === 'E';
-                            });
-                            console.log(`[PP INGRESO] Movimientos PP E del mismo día (${mov.fechaStr}):`, movimientosPPEDelDia.map(m => `${m.minutaOrigen} (${m.cantidad})`));
-                        }
-                        
-                        // SEGUNDO: Si no se encuentra en el mismo día, buscar en TODOS los movimientos anteriores
-                        const egresoPPAnterior = egresoPPDelMismoDia || movimientos.slice(0, indiceActual).find(m => {
+                        const egresoPPAnterior = movimientos.slice(0, indiceActual).find(m => {
                             return m.tipoMin === 'PP' && 
                                    m.tipoMov === 'E' && 
                                    m.minutaOrigen === mov.minutaOrigen;
                         });
                         
-                        if (egresoPPDelMismoDia) {
-                            console.log(`[PP INGRESO] ✅ Encontrado egreso PP del mismo día ${egresoPPDelMismoDia.fechaStr}, procesándolo primero como excepción`);
-                        } else if (egresoPPAnterior) {
-                            console.log(`[PP INGRESO] Encontrado egreso PP anterior del ${egresoPPAnterior.fechaStr}, procesándolo ahora`);
-                        } else {
-                            console.log(`[PP INGRESO] ⚠️ No se encontró egreso PP anterior ni del mismo día para ${mov.minutaOrigen}`);
-                            console.log(`[PP INGRESO] Movimientos anteriores con tipo PP E:`, movimientos.slice(0, indiceActual).filter(m => m.tipoMin === 'PP' && m.tipoMov === 'E').map(m => `${m.minutaOrigen} (${m.fechaStr})`));
+                        let egresoPP = egresoPPAnterior;
+                        
+                        // Si no se encuentra en movimientos anteriores, buscar si hay un egreso PP pendiente del mismo día
+                        if (!egresoPP) {
+                            const egresoPPDelMismoDia = movimientos.find(m => {
+                                const mismaFecha = m.fecha && mov.fecha &&
+                                    m.fecha.getFullYear() === mov.fecha.getFullYear() &&
+                                    m.fecha.getMonth() === mov.fecha.getMonth() &&
+                                    m.fecha.getDate() === mov.fecha.getDate();
+                                const esPPEgreso = m.tipoMin === 'PP' && m.tipoMov === 'E';
+                                const mismoMinutaOrigen = m.minutaOrigen === mov.minutaOrigen;
+                                const noEsElMismo = m !== mov;
+                                const despuesDelActual = movimientos.indexOf(m) > indiceActual;
+                                
+                                return mismaFecha && esPPEgreso && mismoMinutaOrigen && noEsElMismo && despuesDelActual;
+                            });
+                            
+                            if (egresoPPDelMismoDia) {
+                                // Hay un egreso PP pendiente del mismo día, procesarlo primero
+                                egresoPP = egresoPPDelMismoDia;
+                                // Marcar el egreso PP como procesado retroactivamente para evitar procesarlo dos veces
+                                egresosPPProcesadosRetroactivamente.add(egresoPP.minutaOrigen);
+                            }
                         }
                         
-                        if (egresoPPAnterior) {
-                            if (egresoPPDelMismoDia) {
-                                console.log(`[PP INGRESO] ⚠️ EXCEPCIÓN: Encontrado egreso PP del mismo día ${egresoPPAnterior.fechaStr}`);
-                                console.log(`[PP INGRESO] IMPORTANTE: Antes de procesar el egreso PP del mismo día, procesar TODOS los ingresos PP pendientes del mismo día`);
-                            } else {
-                                console.log(`[PP INGRESO] Encontrado egreso PP anterior del ${egresoPPAnterior.fechaStr}, procesándolo ahora`);
-                            }
-                            
-                            // Procesar el egreso PP encontrado ahora (simular su procesamiento)
-                            const egresoPP = egresoPPAnterior;
+                        if (egresoPP) {
+                            // Procesar el egreso PP encontrado
                             let cantidadRestanteEgreso = egresoPP.cantidad;
                             
-                            // Si es del mismo día, procesar PRIMERO todos los ingresos PP pendientes del mismo día
-                            if (egresoPPDelMismoDia) {
-                                const indiceMovimientoActual = movimientos.indexOf(mov);
-                                
-                                // Buscar TODOS los ingresos PP pendientes del mismo día (excepto el actual)
-                                const ingresosPPPendientesMismoDia = movimientos.filter(m => {
-                                    const mismaFecha = m.fecha && egresoPP.fecha &&
-                                        m.fecha.getFullYear() === egresoPP.fecha.getFullYear() &&
-                                        m.fecha.getMonth() === egresoPP.fecha.getMonth() &&
-                                        m.fecha.getDate() === egresoPP.fecha.getDate();
-                                    const indiceM = movimientos.indexOf(m);
-                                    return mismaFecha && 
-                                           m.tipoMov === 'I' &&
-                                           m.tipoMin === 'PP' &&
-                                           m !== mov && // Excluir el ingreso PP actual
-                                           indiceM > indiceMovimientoActual; // Después del movimiento actual
-                                });
-                                
-                                console.log(`[PP INGRESO] Ingresos PP pendientes del mismo día a procesar primero: ${ingresosPPPendientesMismoDia.length}`);
-                                
-                                // Procesar cada ingreso PP pendiente del mismo día
-                                for (const ingresoPPPendiente of ingresosPPPendientesMismoDia) {
-                                    // Buscar si tiene distribución guardada
-                                    const distribucionExistente = distribucionesPP[ingresoPPPendiente.minutaOrigen];
-                                    
-                                    if (distribucionExistente && distribucionExistente.length > 0) {
-                                        console.log(`[PP INGRESO] ✅ Procesando ingreso PP pendiente ${ingresoPPPendiente.minutaOrigen} con distribución existente`);
-                                        
-                                        // Aplicar el ingreso PP en las mismas partidas
-                                        for (const dist of distribucionExistente) {
-                                            const partida = partidas.find(p => p.id === dist.partidaId);
-                                            if (partida) {
-                                                partida.saldo += dist.cantidad;
-                                                partida.imputaciones.push({
-                                                    tipoMin: ingresoPPPendiente.tipoMin,
-                                                    tipoMov: ingresoPPPendiente.tipoMov,
-                                                    minutaOrigen: ingresoPPPendiente.minutaOrigen,
-                                                    fecha: ingresoPPPendiente.fecha,
-                                                    fechaStr: ingresoPPPendiente.fechaStr,
-                                                    cantidad: dist.cantidad,
-                                                    cantidadOriginal: ingresoPPPendiente.cantidad,
-                                                    saldoDespues: partida.saldo
-                                                });
-                                            }
-                                        }
-                                        console.log(`[PP INGRESO] ✅ Procesado ingreso PP pendiente ${ingresoPPPendiente.minutaOrigen}`);
-                                        
-                                        // Limpiar la distribución después de usarla
-                                        delete distribucionesPP[ingresoPPPendiente.minutaOrigen];
-                                    } else {
-                                        // Buscar egreso PP en movimientos anteriores
-                                        const indiceIngresoPP = movimientos.indexOf(ingresoPPPendiente);
-                                        const egresoPPParaIngreso = movimientos.slice(0, indiceIngresoPP).find(m => {
-                                            return m.tipoMin === 'PP' && 
-                                                   m.tipoMov === 'E' && 
-                                                   m.minutaOrigen === ingresoPPPendiente.minutaOrigen;
-                                        });
-                                        
-                                        if (egresoPPParaIngreso) {
-                                            // Procesar el egreso PP retroactivamente
-                                            let cantidadRestanteEgresoPendiente = egresoPPParaIngreso.cantidad;
-                                            const partidasDisponiblesParaEgresoPendiente = partidas
-                                                .filter(p => p.saldo > 0 && p.tipoMin !== 'PA')
-                                                .sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
-                                            
-                                            const distribucionPPPendiente = [];
-                                            
-                                            for (const partida of partidasDisponiblesParaEgresoPendiente) {
-                                                if (cantidadRestanteEgresoPendiente <= 0) break;
-                                                
-                                                const cantidadAplicar = Math.min(partida.saldo, cantidadRestanteEgresoPendiente);
-                                                partida.saldo -= cantidadAplicar;
-                                                cantidadRestanteEgresoPendiente -= cantidadAplicar;
-                                                
-                                                partida.imputaciones.push({
-                                                    tipoMin: egresoPPParaIngreso.tipoMin,
-                                                    tipoMov: egresoPPParaIngreso.tipoMov,
-                                                    minutaOrigen: egresoPPParaIngreso.minutaOrigen,
-                                                    fecha: egresoPPParaIngreso.fecha,
-                                                    fechaStr: egresoPPParaIngreso.fechaStr,
-                                                    cantidad: -cantidadAplicar,
-                                                    cantidadOriginal: egresoPPParaIngreso.cantidad,
-                                                    saldoDespues: partida.saldo
-                                                });
-                                                
-                                                distribucionPPPendiente.push({
-                                                    partidaId: partida.id,
-                                                    cantidad: cantidadAplicar
-                                                });
-                                            }
-                                            
-                                            if (cantidadRestanteEgresoPendiente === 0) {
-                                                // Guardar distribución y aplicar el ingreso PP
-                                                distribucionesPP[ingresoPPPendiente.minutaOrigen] = distribucionPPPendiente;
-                                                
-                                                // Aplicar el ingreso PP en las mismas partidas
-                                                for (const dist of distribucionPPPendiente) {
-                                                    const partida = partidas.find(p => p.id === dist.partidaId);
-                                                    if (partida) {
-                                                        partida.saldo += dist.cantidad;
-                                                        partida.imputaciones.push({
-                                                            tipoMin: ingresoPPPendiente.tipoMin,
-                                                            tipoMov: ingresoPPPendiente.tipoMov,
-                                                            minutaOrigen: ingresoPPPendiente.minutaOrigen,
-                                                            fecha: ingresoPPPendiente.fecha,
-                                                            fechaStr: ingresoPPPendiente.fechaStr,
-                                                            cantidad: dist.cantidad,
-                                                            saldoDespues: partida.saldo
-                                                        });
-                                                    }
-                                                }
-                                                console.log(`[PP INGRESO] ✅ Procesado ingreso PP pendiente ${ingresoPPPendiente.minutaOrigen} (retroactivo)`);
-                                            } else {
-                                                console.log(`[PP INGRESO] ⚠️ No se pudo procesar completamente el ingreso PP pendiente ${ingresoPPPendiente.minutaOrigen}, faltante: ${cantidadRestanteEgresoPendiente}`);
-                                            }
-                                        }
-                                    }
-                                }
-                                
-                                console.log(`[PP INGRESO] Después de procesar ingresos PP pendientes, ahora procesando el egreso PP del mismo día`);
-                            }
-                            
-                            // IMPORTANTE: Para egresos PP, NO excluir partidas cerradas si tienen saldo
-                            // Las partidas cerradas por egresos NO-PP pueden recibir egresos PP
-                            // Además, las partidas con saldo 0 por egresos PP anteriores también pueden recibir este egreso PP
                             const partidasDisponibles = partidas
                                 .filter(p => {
-                                    // Excluir PA
                                     if (p.tipoMin === 'PA') return false;
-                                    // Incluir partidas con saldo > 0, incluso si están cerradas
-                                    // porque los egresos PP pueden usar partidas cerradas
                                     return p.saldo > 0;
                                 })
                                 .sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
@@ -721,8 +733,6 @@ function procesarFIFO(movimientos) {
                                     saldoDespues: partida.saldo
                                 });
                                 
-                                // IMPORTANTE: Los egresos PP NO cierran partidas, aunque el saldo llegue a 0
-                                
                                 distribucionNueva.push({
                                     partidaId: partida.id,
                                     cantidad: cantidadAplicar
@@ -730,374 +740,30 @@ function procesarFIFO(movimientos) {
                             }
                             
                             if (cantidadRestanteEgreso > 0) {
-                                // Si no hay suficiente saldo, buscar ingresos "I" pendientes del mismo día del egreso PP
-                                console.log(`[PP INGRESO] No hay suficiente saldo para procesar el egreso PP (faltante: ${cantidadRestanteEgreso}), buscando ingresos I pendientes del día ${egresoPP.fechaStr}`);
-                                
-                                // Buscar TODOS los ingresos I del mismo día del egreso PP
-                                // IMPORTANTE: Buscar TODOS los ingresos I del mismo día que vienen DESPUÉS del movimiento actual
-                                // El movimiento actual puede estar antes o después del egreso PP en el orden
-                                const indiceMovimientoActual = movimientos.indexOf(mov);
-                                const indiceEgresoPP = movimientos.indexOf(egresoPP);
-                                
-                                // Buscar TODOS los ingresos I del mismo día que vienen DESPUÉS del movimiento actual
-                                // Esto incluye todos los ingresos pendientes que aún no se han procesado
-                                const ingresosDelDiaEgreso = movimientos.filter(m => {
-                                    const mismaFecha = m.fecha && egresoPP.fecha &&
-                                        m.fecha.getFullYear() === egresoPP.fecha.getFullYear() &&
-                                        m.fecha.getMonth() === egresoPP.fecha.getMonth() &&
-                                        m.fecha.getDate() === egresoPP.fecha.getDate();
-                                    const indiceM = movimientos.indexOf(m);
-                                    return mismaFecha && 
-                                           m.tipoMov === 'I' &&
-                                           m !== mov && // Excluir el ingreso PP actual que estamos procesando
-                                           indiceM > indiceMovimientoActual; // Después del movimiento actual (para incluir todos los pendientes)
+                                // Si no hay suficiente saldo, generar error
+                                errores.push({
+                                    movimiento: mov,
+                                    mensaje: `No hay suficiente saldo para procesar el egreso PP. Faltante: ${cantidadRestanteEgreso}. MINUTA_ORIGEN: ${egresoPP.minutaOrigen}`
                                 });
-                                
-                                console.log(`[PP INGRESO] Ingresos I pendientes del día ${egresoPP.fechaStr}: ${ingresosDelDiaEgreso.length} encontrados`);
-                                console.log(`[PP INGRESO] Detalle ingresos pendientes:`, ingresosDelDiaEgreso.map(m => `${m.tipoMin} | ${m.minutaOrigen} | ${m.cantidad} | índice: ${movimientos.indexOf(m)}`));
-                                console.log(`[PP INGRESO] Índice egreso PP: ${indiceEgresoPP}, Índice movimiento actual: ${indiceMovimientoActual}`);
-                                
-                                // Log adicional para debug: mostrar todos los ingresos I del mismo día
-                                const todosIngresosDelDia = movimientos.filter(m => {
-                                    const mismaFecha = m.fecha && egresoPP.fecha &&
-                                        m.fecha.getFullYear() === egresoPP.fecha.getFullYear() &&
-                                        m.fecha.getMonth() === egresoPP.fecha.getMonth() &&
-                                        m.fecha.getDate() === egresoPP.fecha.getDate();
-                                    return mismaFecha && m.tipoMov === 'I';
-                                });
-                                console.log(`[PP INGRESO] Todos los ingresos I del día ${egresoPP.fechaStr}:`, todosIngresosDelDia.map(m => `${m.tipoMin} | ${m.minutaOrigen} | ${m.cantidad} | índice: ${movimientos.indexOf(m)} | esMovActual: ${m === mov}`));
-                                
-                                // Ordenar por índice para procesarlos en orden
-                                ingresosDelDiaEgreso.sort((a, b) => movimientos.indexOf(a) - movimientos.indexOf(b));
-                                
-                                // También buscar egresos PP pendientes del mismo día que tienen sus ingresos PP correspondientes
-                                // IMPORTANTE: Buscar TODOS los egresos PP del mismo día que vienen DESPUÉS del movimiento actual
-                                const egresosPPDelDiaEgreso = movimientos.filter(m => {
-                                    const mismaFecha = m.fecha && egresoPP.fecha &&
-                                        m.fecha.getFullYear() === egresoPP.fecha.getFullYear() &&
-                                        m.fecha.getMonth() === egresoPP.fecha.getMonth() &&
-                                        m.fecha.getDate() === egresoPP.fecha.getDate();
-                                    const indiceM = movimientos.indexOf(m);
-                                    return mismaFecha && 
-                                           m.tipoMov === 'E' &&
-                                           m.tipoMin === 'PP' &&
-                                           m !== egresoPP && // Excluir el egreso PP que estamos procesando
-                                           indiceM > indiceMovimientoActual; // Después del movimiento actual (para incluir todos los pendientes)
-                                });
-                                
-                                console.log(`[PP INGRESO] Egresos PP pendientes del día ${egresoPP.fechaStr}: ${egresosPPDelDiaEgreso.length} encontrados`);
-                                console.log(`[PP INGRESO] Detalle egresos pendientes:`, egresosPPDelDiaEgreso.map(m => `${m.tipoMin} | ${m.minutaOrigen} | ${m.cantidad} | índice: ${movimientos.indexOf(m)}`));
-                                
-                                console.log(`[PP INGRESO] Egresos PP pendientes del día ${egresoPP.fechaStr}: ${egresosPPDelDiaEgreso.length} encontrados`);
-                                
-                                if (ingresosDelDiaEgreso.length > 0 || egresosPPDelDiaEgreso.length > 0) {
-                                    console.log(`[PP INGRESO] Encontrados ${ingresosDelDiaEgreso.length} ingreso(s) I y ${egresosPPDelDiaEgreso.length} egreso(s) PP pendientes del día del egreso PP, procesándolos primero`);
-                                    
-                                    // Separar ingresos I en dos grupos:
-                                    // 1. Ingresos que crean partidas directamente (TRFU, C, ING, PA)
-                                    // 2. Ingresos PP que necesitan un egreso PP previo
-                                    const ingresosQueCreanPartidas = ingresosDelDiaEgreso.filter(ing => ['TRFU', 'C', 'ING', 'PA'].includes(ing.tipoMin));
-                                    const ingresosPPDelDia = ingresosDelDiaEgreso.filter(ing => ing.tipoMin === 'PP');
-                                    
-                                    // Primero procesar ingresos que crean partidas directamente
-                                    for (const ingreso of ingresosQueCreanPartidas) {
-                                        const partida = {
-                                            id: partidaIdCounter++,
-                                            tipoMin: ingreso.tipoMin,
-                                            tipoMov: ingreso.tipoMov,
-                                            minutaOrigen: ingreso.minutaOrigen,
-                                            fecha: ingreso.fecha,
-                                            fechaStr: ingreso.fechaStr,
-                                            cantidadInicial: ingreso.cantidad,
-                                            saldo: ingreso.cantidad,
-                                            cerrada: false,
-                                            imputaciones: []
-                                        };
-                                        partidas.push(partida);
-                                        console.log(`[PP INGRESO] Creada nueva partida ${partida.id} con saldo ${partida.saldo} desde ingreso pendiente`);
-                                    }
-                                    
-                                    // Procesar pares PP E/I pendientes (tanto ingresos PP como egresos PP pendientes)
-                                    // Crear un mapa de todos los pares PP del mismo día
-                                    const paresPP = new Map();
-                                    
-                                    // Agregar ingresos PP pendientes
-                                    for (const ingresoPPDelDia of ingresosPPDelDia) {
-                                        if (!paresPP.has(ingresoPPDelDia.minutaOrigen)) {
-                                            paresPP.set(ingresoPPDelDia.minutaOrigen, { ingreso: null, egreso: null });
-                                        }
-                                        paresPP.get(ingresoPPDelDia.minutaOrigen).ingreso = ingresoPPDelDia;
-                                    }
-                                    
-                                    // Agregar egresos PP pendientes
-                                    for (const egresoPPDelDia of egresosPPDelDiaEgreso) {
-                                        if (!paresPP.has(egresoPPDelDia.minutaOrigen)) {
-                                            paresPP.set(egresoPPDelDia.minutaOrigen, { ingreso: null, egreso: null });
-                                        }
-                                        paresPP.get(egresoPPDelDia.minutaOrigen).egreso = egresoPPDelDia;
-                                    }
-                                    
-                                    // PRIMERO: Procesar TODOS los ingresos PP pendientes que pueden crear saldo
-                                    // Esto incluye:
-                                    // 1. Ingresos PP que tienen distribución guardada (ya procesados anteriormente)
-                                    // 2. Ingresos PP que pueden encontrar su egreso PP en movimientos anteriores
-                                    // IMPORTANTE: Procesar TODOS los ingresos PP pendientes antes de procesar cualquier egreso PP
-                                    
-                                    // Procesar ingresos PP pendientes que tienen distribución guardada (más rápido, no requieren procesar egreso PP)
-                                    for (const ingresoPPDelDia of ingresosPPDelDia) {
-                                        // Si ya tiene un par completo en el mismo día, saltarlo por ahora (se procesará después)
-                                        if (paresPP.has(ingresoPPDelDia.minutaOrigen) && 
-                                            paresPP.get(ingresoPPDelDia.minutaOrigen).ingreso && 
-                                            paresPP.get(ingresoPPDelDia.minutaOrigen).egreso) {
-                                            continue;
-                                        }
-                                        
-                                        // Verificar si ya tiene distribución guardada
-                                        const distribucionExistente = distribucionesPP[ingresoPPDelDia.minutaOrigen];
-                                        
-                                        if (distribucionExistente && distribucionExistente.length > 0) {
-                                            console.log(`[PP INGRESO] ✅ Distribución ya existe para ${ingresoPPDelDia.minutaOrigen}, aplicando ingreso PP`);
-                                            
-                                            // Aplicar el ingreso PP en las mismas partidas
-                                            for (const dist of distribucionExistente) {
-                                                const partida = partidas.find(p => p.id === dist.partidaId);
-                                                if (partida) {
-                                                    partida.saldo += dist.cantidad;
-                                                    partida.imputaciones.push({
-                                                        tipoMin: ingresoPPDelDia.tipoMin,
-                                                        tipoMov: ingresoPPDelDia.tipoMov,
-                                                        minutaOrigen: ingresoPPDelDia.minutaOrigen,
-                                                        fecha: ingresoPPDelDia.fecha,
-                                                        fechaStr: ingresoPPDelDia.fechaStr,
-                                                        cantidad: dist.cantidad,
-                                                        cantidadOriginal: ingresoPPDelDia.cantidad,
-                                                        saldoDespues: partida.saldo
-                                                    });
-                                                }
-                                            }
-                                            console.log(`[PP INGRESO] ✅ Procesado ingreso PP pendiente ${ingresoPPDelDia.minutaOrigen} usando distribución existente`);
-                                            
-                                            // Limpiar la distribución después de usarla
-                                            delete distribucionesPP[ingresoPPDelDia.minutaOrigen];
-                                        }
-                                    }
-                                    
-                                    // Procesar ingresos PP pendientes que NO tienen distribución guardada pero pueden encontrar su egreso PP en movimientos anteriores
-                                    for (const ingresoPPDelDia of ingresosPPDelDia) {
-                                        // Si ya tiene un par completo en el mismo día, saltarlo por ahora
-                                        if (paresPP.has(ingresoPPDelDia.minutaOrigen) && 
-                                            paresPP.get(ingresoPPDelDia.minutaOrigen).ingreso && 
-                                            paresPP.get(ingresoPPDelDia.minutaOrigen).egreso) {
-                                            continue;
-                                        }
-                                        
-                                        // Si ya fue procesado (tiene distribución), saltarlo
-                                        if (distribucionesPP[ingresoPPDelDia.minutaOrigen]) {
-                                            continue;
-                                        }
-                                        
-                                        console.log(`[PP INGRESO] Procesando ingreso PP pendiente ${ingresoPPDelDia.minutaOrigen} (sin par completo en mismo día)`);
-                                        
-                                        // Buscar egreso PP en movimientos anteriores (ya procesados, pueden tener distribución guardada)
-                                        const indiceIngresoPP = movimientos.indexOf(ingresoPPDelDia);
-                                        const egresoPPDelDiaParaIngreso = movimientos.slice(0, indiceIngresoPP).find(m => {
-                                            return m.tipoMin === 'PP' && 
-                                                   m.tipoMov === 'E' && 
-                                                   m.minutaOrigen === ingresoPPDelDia.minutaOrigen;
-                                        });
-                                        
-                                        if (egresoPPDelDiaParaIngreso) {
-                                            // No hay distribución guardada, procesar el egreso PP retroactivamente
-                                            console.log(`[PP INGRESO] No se encontró distribución guardada para ${ingresoPPDelDia.minutaOrigen}, procesando egreso PP retroactivamente`);
-                                            
-                                            // Procesar el egreso PP primero
-                                            let cantidadRestanteEgresoPendiente = egresoPPDelDiaParaIngreso.cantidad;
-                                            const partidasDisponiblesParaEgresoPendiente = partidas
-                                                .filter(p => p.saldo > 0 && p.tipoMin !== 'PA')
-                                                .sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
-                                            
-                                            const distribucionPPPendiente = [];
-                                            
-                                            for (const partida of partidasDisponiblesParaEgresoPendiente) {
-                                                if (cantidadRestanteEgresoPendiente <= 0) break;
-                                                
-                                                const cantidadAplicar = Math.min(partida.saldo, cantidadRestanteEgresoPendiente);
-                                                partida.saldo -= cantidadAplicar;
-                                                cantidadRestanteEgresoPendiente -= cantidadAplicar;
-                                                
-                                                partida.imputaciones.push({
-                                                    tipoMin: egresoPPDelDiaParaIngreso.tipoMin,
-                                                    tipoMov: egresoPPDelDiaParaIngreso.tipoMov,
-                                                    minutaOrigen: egresoPPDelDiaParaIngreso.minutaOrigen,
-                                                    fecha: egresoPPDelDiaParaIngreso.fecha,
-                                                    fechaStr: egresoPPDelDiaParaIngreso.fechaStr,
-                                                    cantidad: -cantidadAplicar,
-                                                    saldoDespues: partida.saldo
-                                                });
-                                                
-                                                distribucionPPPendiente.push({
-                                                    partidaId: partida.id,
-                                                    cantidad: cantidadAplicar
-                                                });
-                                            }
-                                            
-                                            if (cantidadRestanteEgresoPendiente === 0) {
-                                                // Guardar distribución y aplicar el ingreso PP
-                                                distribucionesPP[ingresoPPDelDia.minutaOrigen] = distribucionPPPendiente;
-                                                
-                                                // Aplicar el ingreso PP en las mismas partidas
-                                                for (const dist of distribucionPPPendiente) {
-                                                    const partida = partidas.find(p => p.id === dist.partidaId);
-                                                    if (partida) {
-                                                        partida.saldo += dist.cantidad;
-                                                        partida.imputaciones.push({
-                                                            tipoMin: ingresoPPDelDia.tipoMin,
-                                                            tipoMov: ingresoPPDelDia.tipoMov,
-                                                            minutaOrigen: ingresoPPDelDia.minutaOrigen,
-                                                            fecha: ingresoPPDelDia.fecha,
-                                                            fechaStr: ingresoPPDelDia.fechaStr,
-                                                            cantidad: dist.cantidad,
-                                                            saldoDespues: partida.saldo
-                                                        });
-                                                    }
-                                                }
-                                                console.log(`[PP INGRESO] ✅ Procesado par PP E/I pendiente para ${ingresoPPDelDia.minutaOrigen} (retroactivo)`);
-                                            } else {
-                                                console.log(`[PP INGRESO] ⚠️ No se pudo procesar completamente el egreso PP retroactivo para ${ingresoPPDelDia.minutaOrigen}, faltante: ${cantidadRestanteEgresoPendiente}`);
-                                            }
-                                        }
-                                    }
-                                    
-                                    // SEGUNDO: Procesar todos los pares PP completos (que tienen tanto E como I en el mismo día)
-                                    for (const [minutaOrigen, par] of paresPP.entries()) {
-                                        if (par.ingreso && par.egreso) {
-                                            console.log(`[PP INGRESO] Procesando par PP E/I completo pendiente para ${minutaOrigen}`);
-                                            
-                                            // Procesar el egreso PP primero
-                                            let cantidadRestanteEgresoPendiente = par.egreso.cantidad;
-                                            const partidasDisponiblesParaEgresoPendiente = partidas
-                                                .filter(p => p.saldo > 0 && p.tipoMin !== 'PA')
-                                                .sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
-                                            
-                                            const distribucionPPPendiente = [];
-                                            
-                                            for (const partida of partidasDisponiblesParaEgresoPendiente) {
-                                                if (cantidadRestanteEgresoPendiente <= 0) break;
-                                                
-                                                const cantidadAplicar = Math.min(partida.saldo, cantidadRestanteEgresoPendiente);
-                                                partida.saldo -= cantidadAplicar;
-                                                cantidadRestanteEgresoPendiente -= cantidadAplicar;
-                                                
-                                                partida.imputaciones.push({
-                                                    tipoMin: par.egreso.tipoMin,
-                                                    tipoMov: par.egreso.tipoMov,
-                                                    minutaOrigen: par.egreso.minutaOrigen,
-                                                    fecha: par.egreso.fecha,
-                                                    fechaStr: par.egreso.fechaStr,
-                                                    cantidad: -cantidadAplicar,
-                                                    cantidadOriginal: par.egreso.cantidad,
-                                                    saldoDespues: partida.saldo
-                                                });
-                                                
-                                                distribucionPPPendiente.push({
-                                                    partidaId: partida.id,
-                                                    cantidad: cantidadAplicar
-                                                });
-                                            }
-                                            
-                                            if (cantidadRestanteEgresoPendiente === 0) {
-                                                // Guardar distribución y aplicar el ingreso PP
-                                                distribucionesPP[par.ingreso.minutaOrigen] = distribucionPPPendiente;
-                                                
-                                                // Aplicar el ingreso PP en las mismas partidas
-                                                for (const dist of distribucionPPPendiente) {
-                                                    const partida = partidas.find(p => p.id === dist.partidaId);
-                                                    if (partida) {
-                                                        partida.saldo += dist.cantidad;
-                                                        partida.imputaciones.push({
-                                                            tipoMin: par.ingreso.tipoMin,
-                                                            tipoMov: par.ingreso.tipoMov,
-                                                            minutaOrigen: par.ingreso.minutaOrigen,
-                                                            fecha: par.ingreso.fecha,
-                                                            fechaStr: par.ingreso.fechaStr,
-                                                            cantidad: dist.cantidad,
-                                                            cantidadOriginal: par.ingreso.cantidad,
-                                                            saldoDespues: partida.saldo
-                                                        });
-                                                    }
-                                                }
-                                                console.log(`[PP INGRESO] ✅ Procesado par PP E/I completo pendiente para ${minutaOrigen}`);
-                                            } else {
-                                                console.log(`[PP INGRESO] ⚠️ No se pudo procesar completamente el egreso PP para ${minutaOrigen}, faltante: ${cantidadRestanteEgresoPendiente}`);
-                                            }
-                                        }
-                                    }
-                                    
-                                    
-                                    // Recalcular partidas disponibles después de procesar los ingresos pendientes
-                                    const nuevasPartidasDisponibles = partidas
-                                        .filter(p => {
-                                            if (p.tipoMin === 'PA') return false;
-                                            return p.saldo > 0;
-                                        })
-                                        .sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
-                                    
-                                    // Reintentar aplicar el egreso PP original con las nuevas partidas
-                                    console.log(`[PP INGRESO] Reintentando egreso PP ${egresoPP.minutaOrigen} después de procesar ingresos pendientes`);
-                                    distribucionNueva.length = 0; // Limpiar distribución anterior
-                                    let cantidadRestanteReintento = egresoPP.cantidad;
-                                    
-                                    for (const partida of nuevasPartidasDisponibles) {
-                                        if (cantidadRestanteReintento <= 0) break;
-                                        
-                                        const cantidadAplicar = Math.min(partida.saldo, cantidadRestanteReintento);
-                                        partida.saldo -= cantidadAplicar;
-                                        cantidadRestanteReintento -= cantidadAplicar;
-                                        
-                                        partida.imputaciones.push({
-                                            tipoMin: egresoPP.tipoMin,
-                                            tipoMov: egresoPP.tipoMov,
-                                            minutaOrigen: egresoPP.minutaOrigen,
-                                            fecha: egresoPP.fecha,
-                                            fechaStr: egresoPP.fechaStr,
-                                            cantidad: -cantidadAplicar,
-                                            cantidadOriginal: egresoPP.cantidad,
-                                            saldoDespues: partida.saldo
-                                        });
-                                        
-                                        distribucionNueva.push({
-                                            partidaId: partida.id,
-                                            cantidad: cantidadAplicar
-                                        });
-                                    }
-                                    
-                                    cantidadRestanteEgreso = cantidadRestanteReintento;
-                                }
-                                
-                                if (cantidadRestanteEgreso > 0) {
-                                    errores.push({
-                                        movimiento: mov,
-                                        mensaje: `No hay suficiente saldo para procesar el egreso PP anterior. Faltante: ${cantidadRestanteEgreso}. Se procesaron ingresos I pendientes del día pero aún falta saldo.`
-                                    });
-                                    break;
-                                }
+                                break;
                             }
                             
                             // Guardar la distribución y usarla para el ingreso
                             distribucionesPP[mov.minutaOrigen] = distribucionNueva;
                             distribucion = distribucionNueva;
-                            if (egresoPPDelMismoDia) {
-                                console.log(`[PP INGRESO] ✅ Distribución creada desde egreso PP del mismo día (excepción): ${distribucionNueva.length} partidas`);
-                            } else {
-                                console.log(`[PP INGRESO] Distribución creada desde egreso PP anterior: ${distribucionNueva.length} partidas`);
+                            
+                            // Si el egreso PP es del mismo día, ya fue marcado arriba
+                            // Si es anterior, marcarlo ahora
+                            if (egresoPPAnterior) {
+                                egresosPPProcesadosRetroactivamente.add(egresoPP.minutaOrigen);
                             }
                         } else {
-                            // Solo generar error si NO se encontró ni en el mismo día ni en movimientos anteriores
+                            // No se encontró egreso PP ni anterior ni pendiente del mismo día
                             errores.push({
                                 movimiento: mov,
-                                mensaje: `No se encontró un egreso PP previo con MINUTA_ORIGEN ${mov.minutaOrigen} para aplicar el ingreso PP. Se buscó en el mismo día y en todos los movimientos anteriores sin resultados.`
+                                mensaje: `No se encontró un egreso PP previo con MINUTA_ORIGEN ${mov.minutaOrigen} para aplicar el ingreso PP.`
                             });
-                            break; // Detener procesamiento al primer error
+                            break;
                         }
                     }
                     
@@ -1121,7 +787,11 @@ function procesarFIFO(movimientos) {
                     }
                     
                     // Aplicar el ingreso en las mismas partidas y cantidades que el egreso
-                    console.log(`[PP INGRESO] Aplicando ingreso PP ${mov.minutaOrigen} a ${distribucion.length} partidas`);
+                    let cantidadTotalAplicada = 0;
+                    const saldoAntes = partidas
+                        .filter(p => p.saldo > 0 && p.tipoMin !== 'PA')
+                        .reduce((sum, p) => sum + p.saldo, 0);
+                    
                     for (const dist of distribucion) {
                         const partida = partidas.find(p => p.id === dist.partidaId);
                         
@@ -1135,7 +805,9 @@ function procesarFIFO(movimientos) {
                         
                         // IMPORTANTE: Aplicar el ingreso PP incluso si la partida tiene saldo 0
                         // porque los egresos PP no cierran partidas
+                        const saldoAntesPartida = partida.saldo;
                         partida.saldo += dist.cantidad;
+                        cantidadTotalAplicada += dist.cantidad;
                         partida.imputaciones.push({
                             tipoMin: mov.tipoMin,
                             tipoMov: mov.tipoMov,
@@ -1147,11 +819,66 @@ function procesarFIFO(movimientos) {
                             saldoDespues: partida.saldo
                         });
                         
-                        console.log(`[PP INGRESO] Partida ${partida.id}: saldo aumentado en ${dist.cantidad}, nuevo saldo: ${partida.saldo}`);
+                        // Log detallado si el saldo no cambió como se esperaba
+                        if (saldoAntesPartida === 0 && dist.cantidad > 0 && partida.saldo === dist.cantidad) {
+                            // Esto es normal: partida tenía saldo 0 y ahora tiene el ingreso
+                        }
                     }
                     
-                    // Limpiar la distribución después de usarla (opcional, para evitar reutilización)
-                    delete distribucionesPP[mov.minutaOrigen];
+                    // Log de ingreso PP aplicado
+                    const saldoDespuesIngresoPP = partidas
+                        .filter(p => p.saldo > 0 && p.tipoMin !== 'PA')
+                        .reduce((sum, p) => sum + p.saldo, 0);
+                    
+                    // Verificar si el saldo cambió correctamente
+                    const diferenciaEsperada = cantidadTotalAplicada;
+                    const diferenciaReal = saldoDespuesIngresoPP - saldoAntes;
+                    
+                    // Calcular saldo total incluyendo partidas con saldo <= 0 para diagnóstico
+                    const saldoTotalIncluyendoNegativos = partidas
+                        .filter(p => p.tipoMin !== 'PA')
+                        .reduce((sum, p) => sum + p.saldo, 0);
+                    
+                    // Detalle de las partidas afectadas
+                    const partidasAfectadas = distribucion.map(dist => {
+                        const partida = partidas.find(p => p.id === dist.partidaId);
+                        if (partida) {
+                            const saldoAntesPartida = partida.saldo - dist.cantidad;
+                            return {
+                                id: partida.id,
+                                saldoAntes: saldoAntesPartida,
+                                cantidadAplicada: dist.cantidad,
+                                saldoDespues: partida.saldo,
+                                apareceEnSaldoTotal: partida.saldo > 0,
+                                tipoMin: partida.tipoMin
+                            };
+                        }
+                        return null;
+                    }).filter(p => p !== null);
+                    
+                    // Verificar si alguna partida no aparece en el saldo total
+                    const partidasNoAparecen = partidasAfectadas.filter(p => !p.apareceEnSaldoTotal);
+                    
+                    // SIEMPRE mostrar el detalle si hay diferencia o si alguna partida no aparece en el saldo total
+                    if (Math.abs(diferenciaEsperada - diferenciaReal) > 0.01 || partidasNoAparecen.length > 0) {
+                        console.log(`[INGRESO PP] ⚠️ ${mov.minutaOrigen} | Aplicado: ${cantidadTotalAplicada.toLocaleString('es-AR')} | Saldo antes: ${saldoAntes.toLocaleString('es-AR')} | Saldo después: ${saldoDespuesIngresoPP.toLocaleString('es-AR')} | Diferencia esperada: ${diferenciaEsperada.toLocaleString('es-AR')} | Diferencia real: ${diferenciaReal.toLocaleString('es-AR')} | Saldo total (incl. negativos): ${saldoTotalIncluyendoNegativos.toLocaleString('es-AR')} | Distribución: ${distribucion.length} partidas`);
+                        partidasAfectadas.forEach(p => {
+                            console.log(`[INGRESO PP] ⚠️   Partida ${p.id} (${p.tipoMin}): Saldo antes: ${p.saldoAntes.toLocaleString('es-AR')} | Aplicado: ${p.cantidadAplicada.toLocaleString('es-AR')} | Saldo después: ${p.saldoDespues.toLocaleString('es-AR')} | ${p.apareceEnSaldoTotal ? '✅' : '❌ NO aparece en saldo total'}`);
+                        });
+                    } else {
+                        console.log(`[INGRESO PP] ${mov.minutaOrigen} | Aplicado: ${cantidadTotalAplicada.toLocaleString('es-AR')} | Saldo después: ${saldoDespuesIngresoPP.toLocaleString('es-AR')}`);
+                    }
+                    
+                    // NO eliminar la distribución si el egreso PP correspondiente aún no se ha procesado
+                    // La distribución se eliminará cuando el egreso PP se procese en su posición normal
+                    // Solo eliminar si el egreso PP ya fue procesado retroactivamente (ya está marcado)
+                    if (!egresosPPProcesadosRetroactivamente.has(mov.minutaOrigen)) {
+                        // El egreso PP aún no se ha procesado, mantener la distribución para cuando se procese
+                        // No eliminar la distribución aquí
+                    } else {
+                        // El egreso PP ya fue procesado retroactivamente, es seguro eliminar la distribución
+                        delete distribucionesPP[mov.minutaOrigen];
+                    }
                 }
             } else if (mov.tipoMov === 'E') {
                 // EGRESO: Aplicar FIFO
@@ -1196,6 +923,51 @@ function procesarFIFO(movimientos) {
                 } else if (mov.tipoMin === 'PP') {
                     // PP como EGRESO: aplicar FIFO a partidas existentes y guardar la distribución
                     // IMPORTANTE: Los egresos PP NO cierran partidas, así que incluimos partidas cerradas si tienen saldo
+                    
+                    // Si este egreso PP ya fue procesado retroactivamente desde un ingreso PP, saltarlo
+                    if (egresosPPProcesadosRetroactivamente.has(mov.minutaOrigen)) {
+                        // El egreso PP ya fue procesado, verificar que la distribución existe
+                        // Si no existe, puede que se haya eliminado prematuramente, intentar recrearla desde las imputaciones
+                        let distribucionExistente = distribucionesPP[mov.minutaOrigen];
+                        
+                        if (!distribucionExistente || distribucionExistente.length === 0) {
+                            // Intentar recrear la distribución desde las imputaciones del egreso PP
+                            const imputacionesEgreso = [];
+                            partidas.forEach(p => {
+                                p.imputaciones.forEach(imp => {
+                                    if (imp.tipoMin === 'PP' && 
+                                        imp.tipoMov === 'E' && 
+                                        imp.minutaOrigen === mov.minutaOrigen &&
+                                        imp.fechaStr === mov.fechaStr) {
+                                        imputacionesEgreso.push({
+                                            partidaId: p.id,
+                                            cantidad: Math.abs(imp.cantidad)
+                                        });
+                                    }
+                                });
+                            });
+                            
+                            if (imputacionesEgreso.length > 0) {
+                                distribucionExistente = imputacionesEgreso;
+                                distribucionesPP[mov.minutaOrigen] = distribucionExistente;
+                            } else {
+                                errores.push({
+                                    movimiento: mov,
+                                    mensaje: `El egreso PP ${mov.minutaOrigen} fue procesado retroactivamente pero no se encontró su distribución guardada ni se pudo recrear desde las imputaciones`
+                                });
+                                break;
+                            }
+                        }
+                        
+                        // Log indicando que se salta porque ya fue procesado retroactivamente
+                        const saldoActual = partidas
+                            .filter(p => p.saldo > 0 && p.tipoMin !== 'PA')
+                            .reduce((sum, p) => sum + p.saldo, 0);
+                        console.log(`[EGRESO PP] ${mov.minutaOrigen} | Ya procesado retroactivamente, saltando | Saldo: ${saldoActual.toLocaleString('es-AR')}`);
+                        // Continuar sin procesar el egreso PP de nuevo
+                        continue;
+                    }
+                    
                     const partidasDisponibles = partidas
                         .filter(p => p.saldo > 0 && p.tipoMin !== 'PA') // Excluir PA, pero incluir cerradas si tienen saldo
                         .sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
@@ -1203,17 +975,7 @@ function procesarFIFO(movimientos) {
                     // Calcular saldo total disponible
                     const saldoTotalDisponible = partidasDisponibles.reduce((sum, p) => sum + p.saldo, 0);
                     
-                    // Log para debug
-                    console.log(`[PP EGRESO] MINUTA_ORIGEN: ${mov.minutaOrigen}, Cantidad requerida: ${mov.cantidad}`);
-                    console.log(`[PP EGRESO] Partidas disponibles: ${partidasDisponibles.length}, Saldo total: ${saldoTotalDisponible}`);
-                    if (partidasDisponibles.length > 0) {
-                        console.log(`[PP EGRESO] Detalle partidas:`, partidasDisponibles.map(p => ({
-                            id: p.id,
-                            tipoMin: p.tipoMin,
-                            saldo: p.saldo,
-                            fecha: p.fechaStr
-                        })));
-                    }
+                    // Log solo si hay error (se mostrará más abajo)
 
                     const distribucion = [];
                     
@@ -1247,9 +1009,12 @@ function procesarFIFO(movimientos) {
 
                     if (cantidadRestante > 0) {
                         // Si no hay suficiente saldo, buscar ingresos "I" del mismo día que aún no se han procesado
-                        console.log(`[PP EGRESO] No hay suficiente saldo (faltante: ${cantidadRestante}), buscando ingresos I del mismo día ${mov.fechaStr}`);
                         
-                        const ingresosDelDia = movimientos.filter(m => {
+                        // Bandera para indicar si se procesó exitosamente el par completo (egreso PP + ingreso PP)
+                        let parCompletoProcesado = false;
+                        
+                        // Buscar ingresos del mismo día que vienen después del movimiento actual
+                        const ingresosDelDiaPendientes = movimientos.filter(m => {
                             const mismaFecha = m.fecha && mov.fecha &&
                                 m.fecha.getFullYear() === mov.fecha.getFullYear() &&
                                 m.fecha.getMonth() === mov.fecha.getMonth() &&
@@ -1260,44 +1025,71 @@ function procesarFIFO(movimientos) {
                                    movimientos.indexOf(m) > i; // Solo los que vienen después en el orden
                         });
                         
-                        // Ordenar por índice para procesarlos en orden
-                        ingresosDelDia.sort((a, b) => movimientos.indexOf(a) - movimientos.indexOf(b));
+                        // También verificar si hay partidas creadas por ingresos anteriores del mismo día que aún tienen saldo
+                        // Esto es importante porque un ingreso puede haber sido procesado antes pero su partida aún tiene saldo disponible
+                        const partidasDelDiaConSaldo = partidas.filter(p => {
+                            if (p.saldo <= 0 || p.tipoMin === 'PA') return false;
+                            if (!p.fecha || !mov.fecha) return false;
+                            return p.fecha.getFullYear() === mov.fecha.getFullYear() &&
+                                   p.fecha.getMonth() === mov.fecha.getMonth() &&
+                                   p.fecha.getDate() === mov.fecha.getDate();
+                        });
                         
-                        if (ingresosDelDia.length > 0) {
-                            console.log(`[PP EGRESO] Encontrados ${ingresosDelDia.length} ingreso(s) I del mismo día, procesándolos primero`);
+                        const saldoDisponiblePartidasDelDia = partidasDelDiaConSaldo.reduce((sum, p) => sum + p.saldo, 0);
+                        
+                        // Ordenar por índice para procesarlos en orden
+                        ingresosDelDiaPendientes.sort((a, b) => movimientos.indexOf(a) - movimientos.indexOf(b));
+                        
+                        if (ingresosDelDiaPendientes.length > 0) {
                             
                             // Separar ingresos I en dos grupos:
                             // 1. Ingresos que crean partidas directamente (TRFU, C, ING, PA)
                             // 2. Ingresos PP que necesitan un egreso PP previo
-                            const ingresosQueCreanPartidas = ingresosDelDia.filter(ing => ['TRFU', 'C', 'ING', 'PA'].includes(ing.tipoMin));
-                            const ingresosPP = ingresosDelDia.filter(ing => ing.tipoMin === 'PP');
+                            const ingresosQueCreanPartidas = ingresosDelDiaPendientes.filter(ing => ['TRFU', 'C', 'ING', 'PA'].includes(ing.tipoMin));
+                            const ingresosPP = ingresosDelDiaPendientes.filter(ing => ing.tipoMin === 'PP');
                             
                             // Primero procesar ingresos que crean partidas directamente
                             for (const ingreso of ingresosQueCreanPartidas) {
                                 if (cantidadRestante <= 0) break;
                                 
-                                const partida = {
-                                    id: partidaIdCounter++,
-                                    tipoMin: ingreso.tipoMin,
-                                    tipoMov: ingreso.tipoMov,
-                                    minutaOrigen: ingreso.minutaOrigen,
-                                    fecha: ingreso.fecha,
-                                    fechaStr: ingreso.fechaStr,
-                                    cantidadInicial: ingreso.cantidad,
-                                    saldo: ingreso.cantidad,
-                                    cerrada: false, // Las partidas se crean abiertas
-                                    imputaciones: []
-                                };
-                                partidas.push(partida);
-                                console.log(`[PP EGRESO] Creada nueva partida ${partida.id} con saldo ${partida.saldo}`);
+                                // Verificar si ya existe una partida para este ingreso (puede haber sido procesado antes)
+                                const partidaExistente = partidas.find(p => 
+                                    p.tipoMin === ingreso.tipoMin &&
+                                    p.minutaOrigen === ingreso.minutaOrigen &&
+                                    p.fecha.getTime() === ingreso.fecha.getTime()
+                                );
+                                
+                                if (!partidaExistente) {
+                                    const partida = {
+                                        id: partidaIdCounter++,
+                                        tipoMin: ingreso.tipoMin,
+                                        tipoMov: ingreso.tipoMov,
+                                        minutaOrigen: ingreso.minutaOrigen,
+                                        fecha: ingreso.fecha,
+                                        fechaStr: ingreso.fechaStr,
+                                        cantidadInicial: ingreso.cantidad,
+                                        saldo: ingreso.cantidad,
+                                        cerrada: false, // Las partidas se crean abiertas
+                                        imputaciones: []
+                                    };
+                                    partidas.push(partida);
+                                }
                             }
                             
                             // Luego procesar ingresos PP: buscar sus egresos PP correspondientes del mismo día
                             for (const ingresoPP of ingresosPP) {
                                 if (cantidadRestante <= 0) break;
                                 
+                                // PRIMERO: Verificar si el egreso PP correspondiente es el movimiento actual
+                                const esElMovimientoActual = mov.tipoMin === 'PP' &&
+                                                             mov.tipoMov === 'E' &&
+                                                             mov.minutaOrigen === ingresoPP.minutaOrigen &&
+                                                             mov.fecha.getFullYear() === ingresoPP.fecha.getFullYear() &&
+                                                             mov.fecha.getMonth() === ingresoPP.fecha.getMonth() &&
+                                                             mov.fecha.getDate() === ingresoPP.fecha.getDate();
+                                
                                 // Buscar egreso PP E del mismo MINUTA_ORIGEN en el mismo día
-                                const egresoPPDelDia = movimientos.find(m => {
+                                const egresoPPDelDia = esElMovimientoActual ? mov : movimientos.find(m => {
                                     const mismaFecha = m.fecha && ingresoPP.fecha &&
                                         m.fecha.getFullYear() === ingresoPP.fecha.getFullYear() &&
                                         m.fecha.getMonth() === ingresoPP.fecha.getMonth() &&
@@ -1306,76 +1098,162 @@ function procesarFIFO(movimientos) {
                                            m.tipoMin === 'PP' &&
                                            m.tipoMov === 'E' &&
                                            m.minutaOrigen === ingresoPP.minutaOrigen &&
-                                           m !== mov; // No incluir el movimiento actual
+                                           m !== mov; // No incluir el movimiento actual (ya se verificó arriba)
                                 });
                                 
                                 if (egresoPPDelDia) {
-                                    console.log(`[PP EGRESO] Procesando par PP E/I para ${ingresoPP.minutaOrigen}`);
-                                    
-                                    // Procesar el egreso PP primero
-                                    let cantidadRestanteEgreso = egresoPPDelDia.cantidad;
-                            // Para egresos PP dentro del procesamiento de ingresos pendientes, NO excluir partidas cerradas
-                            // porque los PP pueden usar partidas cerradas si tienen saldo
-                            const partidasDisponiblesParaEgreso = partidas
-                                .filter(p => p.saldo > 0 && p.tipoMin !== 'PA') // Incluir cerradas si tienen saldo
-                                .sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
-                                    
-                                    const distribucionPP = [];
-                                    
-                                    for (const partida of partidasDisponiblesParaEgreso) {
-                                        if (cantidadRestanteEgreso <= 0) break;
-                                        
-                                        const cantidadAplicar = Math.min(partida.saldo, cantidadRestanteEgreso);
-                                        partida.saldo -= cantidadAplicar;
-                                        cantidadRestanteEgreso -= cantidadAplicar;
-                                        
-                                        partida.imputaciones.push({
-                                            tipoMin: egresoPPDelDia.tipoMin,
-                                            tipoMov: egresoPPDelDia.tipoMov,
-                                            minutaOrigen: egresoPPDelDia.minutaOrigen,
-                                            fecha: egresoPPDelDia.fecha,
-                                            fechaStr: egresoPPDelDia.fechaStr,
-                                            cantidad: -cantidadAplicar,
-                                            cantidadOriginal: egresoPPDelDia.cantidad,
-                                            saldoDespues: partida.saldo
-                                        });
-                                        
-                                        // IMPORTANTE: Los egresos PP NO cierran partidas, aunque el saldo llegue a 0
-                                        // No marcamos la partida como cerrada aquí
-                                        
-                                        distribucionPP.push({
-                                            partidaId: partida.id,
-                                            cantidad: cantidadAplicar
-                                        });
-                                    }
-                                    
-                                    if (cantidadRestanteEgreso === 0) {
-                                        // Guardar distribución y aplicar el ingreso PP
-                                        distribucionesPP[ingresoPP.minutaOrigen] = distribucionPP;
-                                        
-                                        // Aplicar el ingreso PP en las mismas partidas
-                                        for (const dist of distribucionPP) {
+                                    if (esElMovimientoActual) {
+                                        // CASO ESPECIAL: El ingreso PP corresponde al egreso PP actual
+                                        // Revertir la aplicación parcial del egreso PP y procesar el par completo E/I
+                                        // PASO 1: Revertir la aplicación parcial del egreso PP (restaurar saldo de partidas)
+                                        for (const dist of distribucion) {
                                             const partida = partidas.find(p => p.id === dist.partidaId);
                                             if (partida) {
-                                                partida.saldo += dist.cantidad;
-                                                partida.imputaciones.push({
-                                                    tipoMin: ingresoPP.tipoMin,
-                                                    tipoMov: ingresoPP.tipoMov,
-                                                    minutaOrigen: ingresoPP.minutaOrigen,
-                                                    fecha: ingresoPP.fecha,
-                                                    fechaStr: ingresoPP.fechaStr,
-                                                    cantidad: dist.cantidad,
-                                                    cantidadOriginal: ingresoPP.cantidad,
-                                                    saldoDespues: partida.saldo
-                                                });
+                                                partida.saldo += dist.cantidad; // Restaurar saldo
+                                                // Remover todas las imputaciones del egreso PP parcial de esta partida
+                                                partida.imputaciones = partida.imputaciones.filter(imp => 
+                                                    !(imp.minutaOrigen === mov.minutaOrigen && imp.cantidad < 0 && Math.abs(imp.cantidad) === dist.cantidad)
+                                                );
                                             }
                                         }
-                                        console.log(`[PP EGRESO] Procesado par PP E/I para ${ingresoPP.minutaOrigen}, saldo neto: 0`);
+                                        
+                                        // PASO 2: Procesar el egreso PP completo (aplicar a todas las partidas disponibles)
+                                        let cantidadRestanteEgresoCompleto = mov.cantidad;
+                                        const distribucionCompleta = [];
+                                        const partidasDisponiblesParaEgresoCompleto = partidas
+                                            .filter(p => p.saldo > 0 && p.tipoMin !== 'PA')
+                                            .sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+                                        
+                                        for (const partida of partidasDisponiblesParaEgresoCompleto) {
+                                            if (cantidadRestanteEgresoCompleto <= 0) break;
+                                            
+                                            const cantidadAplicar = Math.min(partida.saldo, cantidadRestanteEgresoCompleto);
+                                            partida.saldo -= cantidadAplicar;
+                                            cantidadRestanteEgresoCompleto -= cantidadAplicar;
+                                            
+                                            distribucionCompleta.push({
+                                                partidaId: partida.id,
+                                                cantidad: cantidadAplicar
+                                            });
+                                        }
+                                        
+                                        // PASO 3: Si el egreso PP completo se pudo aplicar, aplicar el ingreso PP en las mismas partidas
+                                        if (cantidadRestanteEgresoCompleto === 0) {
+                                            // Guardar distribución completa
+                                            distribucionesPP[ingresoPP.minutaOrigen] = distribucionCompleta;
+                                            
+                                            // Marcar el ingreso PP como procesado retroactivamente para evitar procesarlo dos veces
+                                            ingresosPPProcesadosRetroactivamente.add(ingresoPP.minutaOrigen);
+                                            
+                                            // Aplicar el ingreso PP en las mismas partidas
+                                            for (const dist of distribucionCompleta) {
+                                                const partida = partidas.find(p => p.id === dist.partidaId);
+                                                if (partida) {
+                                                    partida.saldo += dist.cantidad;
+                                                    partida.imputaciones.push({
+                                                        tipoMin: mov.tipoMin,
+                                                        tipoMov: mov.tipoMov,
+                                                        minutaOrigen: mov.minutaOrigen,
+                                                        fecha: mov.fecha,
+                                                        fechaStr: mov.fechaStr,
+                                                        cantidad: -dist.cantidad,
+                                                        cantidadOriginal: mov.cantidad,
+                                                        saldoDespues: partida.saldo
+                                                    });
+                                                    partida.imputaciones.push({
+                                                        tipoMin: ingresoPP.tipoMin,
+                                                        tipoMov: ingresoPP.tipoMov,
+                                                        minutaOrigen: ingresoPP.minutaOrigen,
+                                                        fecha: ingresoPP.fecha,
+                                                        fechaStr: ingresoPP.fechaStr,
+                                                        cantidad: dist.cantidad,
+                                                        cantidadOriginal: ingresoPP.cantidad,
+                                                        saldoDespues: partida.saldo
+                                                    });
+                                                }
+                                            }
+                                            
+                                            // Actualizar la distribución y cantidad restante
+                                            distribucion.length = 0;
+                                            distribucion.push(...distribucionCompleta);
+                                            cantidadRestante = 0; // El par completo se procesó, no hay faltante
+                                            parCompletoProcesado = true; // Marcar que se procesó exitosamente
+                                            
+                                        } else {
+                                            // Restaurar la distribución parcial original
+                                            for (const dist of distribucion) {
+                                                const partida = partidas.find(p => p.id === dist.partidaId);
+                                                if (partida) {
+                                                    partida.saldo -= dist.cantidad; // Revertir la reversión
+                                                }
+                                            }
+                                        }
                                     } else {
-                                        console.log(`[PP EGRESO] No se pudo procesar completamente el egreso PP para ${ingresoPP.minutaOrigen}, faltante: ${cantidadRestanteEgreso}`);
+                                        // CASO NORMAL: El ingreso PP corresponde a otro egreso PP del mismo día
+                                        
+                                        // Procesar el egreso PP primero
+                                        let cantidadRestanteEgreso = egresoPPDelDia.cantidad;
+                                        // Para egresos PP dentro del procesamiento de ingresos pendientes, NO excluir partidas cerradas
+                                        // porque los PP pueden usar partidas cerradas si tienen saldo
+                                        const partidasDisponiblesParaEgreso = partidas
+                                            .filter(p => p.saldo > 0 && p.tipoMin !== 'PA') // Incluir cerradas si tienen saldo
+                                            .sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+                                        
+                                        const distribucionPP = [];
+                                        
+                                        for (const partida of partidasDisponiblesParaEgreso) {
+                                            if (cantidadRestanteEgreso <= 0) break;
+                                            
+                                            const cantidadAplicar = Math.min(partida.saldo, cantidadRestanteEgreso);
+                                            partida.saldo -= cantidadAplicar;
+                                            cantidadRestanteEgreso -= cantidadAplicar;
+                                            
+                                            partida.imputaciones.push({
+                                                tipoMin: egresoPPDelDia.tipoMin,
+                                                tipoMov: egresoPPDelDia.tipoMov,
+                                                minutaOrigen: egresoPPDelDia.minutaOrigen,
+                                                fecha: egresoPPDelDia.fecha,
+                                                fechaStr: egresoPPDelDia.fechaStr,
+                                                cantidad: -cantidadAplicar,
+                                                cantidadOriginal: egresoPPDelDia.cantidad,
+                                                saldoDespues: partida.saldo
+                                            });
+                                            
+                                            // IMPORTANTE: Los egresos PP NO cierran partidas, aunque el saldo llegue a 0
+                                            // No marcamos la partida como cerrada aquí
+                                            
+                                            distribucionPP.push({
+                                                partidaId: partida.id,
+                                                cantidad: cantidadAplicar
+                                            });
+                                        }
+                                        
+                                        if (cantidadRestanteEgreso === 0) {
+                                            // Guardar distribución y aplicar el ingreso PP
+                                            distribucionesPP[ingresoPP.minutaOrigen] = distribucionPP;
+                                            
+                                            // Marcar el ingreso PP como procesado retroactivamente para evitar procesarlo dos veces
+                                            ingresosPPProcesadosRetroactivamente.add(ingresoPP.minutaOrigen);
+                                            
+                                            // Aplicar el ingreso PP en las mismas partidas
+                                            for (const dist of distribucionPP) {
+                                                const partida = partidas.find(p => p.id === dist.partidaId);
+                                                if (partida) {
+                                                    partida.saldo += dist.cantidad;
+                                                    partida.imputaciones.push({
+                                                        tipoMin: ingresoPP.tipoMin,
+                                                        tipoMov: ingresoPP.tipoMov,
+                                                        minutaOrigen: ingresoPP.minutaOrigen,
+                                                        fecha: ingresoPP.fecha,
+                                                        fechaStr: ingresoPP.fechaStr,
+                                                        cantidad: dist.cantidad,
+                                                        cantidadOriginal: ingresoPP.cantidad,
+                                                        saldoDespues: partida.saldo
+                                                    });
+                                                }
+                                            }
+                                        }
                                     }
-                                } else {
-                                    console.log(`[PP EGRESO] No se encontró egreso PP E para el ingreso PP I ${ingresoPP.minutaOrigen}`);
                                 }
                             }
                             
@@ -1385,10 +1263,42 @@ function procesarFIFO(movimientos) {
                                 .sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
                             
                             const saldoTotalActualizado = partidasDisponiblesActualizadas.reduce((sum, p) => sum + p.saldo, 0);
-                            console.log(`[PP EGRESO] Después de procesar ingresos I: Saldo total disponible: ${saldoTotalActualizado}, Faltante: ${cantidadRestante}`);
                             
-                            // Reintentar aplicar el egreso PP con las nuevas partidas
-                            for (const partida of partidasDisponiblesActualizadas) {
+                            // Reintentar aplicar el egreso PP con las nuevas partidas (solo si no se procesó el par completo)
+                            if (!parCompletoProcesado) {
+                                for (const partida of partidasDisponiblesActualizadas) {
+                                    if (cantidadRestante <= 0) break;
+                                    
+                                    const cantidadAplicar = Math.min(partida.saldo, cantidadRestante);
+                                    partida.saldo -= cantidadAplicar;
+                                    cantidadRestante -= cantidadAplicar;
+                                    
+                                    partida.imputaciones.push({
+                                        tipoMin: mov.tipoMin,
+                                        tipoMov: mov.tipoMov,
+                                        minutaOrigen: mov.minutaOrigen,
+                                        fecha: mov.fecha,
+                                        fechaStr: mov.fechaStr,
+                                        cantidad: -cantidadAplicar,
+                                        cantidadOriginal: mov.cantidad,
+                                        saldoDespues: partida.saldo
+                                    });
+                                    
+                                    distribucion.push({
+                                        partidaId: partida.id,
+                                        cantidad: cantidadAplicar
+                                    });
+                                }
+                            }
+                        } else if (saldoDisponiblePartidasDelDia > 0) {
+                            // Si no hay ingresos pendientes pero hay partidas del mismo día con saldo disponible,
+                            // usar esas partidas directamente
+                            
+                            // Ordenar partidas del mismo día por fecha (FIFO)
+                            partidasDelDiaConSaldo.sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+                            
+                            // Aplicar el egreso PP a las partidas del mismo día
+                            for (const partida of partidasDelDiaConSaldo) {
                                 if (cantidadRestante <= 0) break;
                                 
                                 const cantidadAplicar = Math.min(partida.saldo, cantidadRestante);
@@ -1402,6 +1312,7 @@ function procesarFIFO(movimientos) {
                                     fecha: mov.fecha,
                                     fechaStr: mov.fechaStr,
                                     cantidad: -cantidadAplicar,
+                                    cantidadOriginal: mov.cantidad,
                                     saldoDespues: partida.saldo
                                 });
                                 
@@ -1412,14 +1323,134 @@ function procesarFIFO(movimientos) {
                             }
                         }
                         
-                        if (cantidadRestante > 0) {
+                        // Verificar si hay un ingreso PP pendiente del mismo día que corresponde al egreso PP actual
+                        // Si existe, no generar error porque se procesará cuando se encuentre el ingreso PP
+                        const ingresoPPCorrespondientePendiente = movimientos
+                            .slice(i + 1) // Movimientos después del actual
+                            .find(m => {
+                                const mismaFecha = m.fecha && mov.fecha &&
+                                    m.fecha.getFullYear() === mov.fecha.getFullYear() &&
+                                    m.fecha.getMonth() === mov.fecha.getMonth() &&
+                                    m.fecha.getDate() === mov.fecha.getDate();
+                                return mismaFecha &&
+                                       m.tipoMin === 'PP' &&
+                                       m.tipoMov === 'I' &&
+                                       m.minutaOrigen === mov.minutaOrigen;
+                            });
+                        
+                        // Solo generar error si todavía hay faltante Y no se procesó exitosamente el par completo
+                        // Y no hay un ingreso PP pendiente que corresponda al egreso PP actual
+                        if (cantidadRestante > 0 && !parCompletoProcesado && !ingresoPPCorrespondientePendiente) {
                             const cantidadAplicada = mov.cantidad - cantidadRestante;
                             const saldoFinal = partidas
                                 .filter(p => p.saldo > 0 && p.tipoMin !== 'PA')
                                 .reduce((sum, p) => sum + p.saldo, 0);
+                            
+                            // Calcular saldo disponible al inicio del día (suma de saldos de partidas creadas antes del día actual)
+                            const saldoInicioDia = partidas
+                                .filter(p => {
+                                    if (p.tipoMin === 'PA') return false;
+                                    // Solo partidas creadas antes del día actual
+                                    if (!p.fecha || !mov.fecha) return false;
+                                    return p.fecha.getTime() < new Date(mov.fecha.getFullYear(), mov.fecha.getMonth(), mov.fecha.getDate()).getTime();
+                                })
+                                .reduce((sum, p) => {
+                                    // Calcular saldo original de la partida (antes de cualquier imputación del día)
+                                    const imputacionesDelDia = p.imputaciones.filter(imp => {
+                                        if (!imp.fecha || !mov.fecha) return false;
+                                        return imp.fecha.getFullYear() === mov.fecha.getFullYear() &&
+                                               imp.fecha.getMonth() === mov.fecha.getMonth() &&
+                                               imp.fecha.getDate() === mov.fecha.getDate();
+                                    });
+                                    const saldoOriginal = p.saldo + imputacionesDelDia.reduce((s, imp) => s - imp.cantidad, 0);
+                                    return sum + saldoOriginal;
+                                }, 0);
+                            
+                            // Calcular ingresos aplicados del día (que crean partidas nuevas)
+                            const ingresosAplicadosDia = movimientos
+                                .slice(0, i + 1)
+                                .filter(m => {
+                                    const mismaFecha = m.fecha && mov.fecha &&
+                                        m.fecha.getFullYear() === mov.fecha.getFullYear() &&
+                                        m.fecha.getMonth() === mov.fecha.getMonth() &&
+                                        m.fecha.getDate() === mov.fecha.getDate();
+                                    return mismaFecha && m.tipoMov === 'I' && ['TRFU', 'C', 'ING', 'PA'].includes(m.tipoMin);
+                                })
+                                .reduce((sum, m) => sum + m.cantidad, 0);
+                            
+                            // Calcular egresos aplicados del día (que consumen saldo de partidas)
+                            const egresosAplicadosDia = movimientos
+                                .slice(0, i + 1)
+                                .filter(m => {
+                                    const mismaFecha = m.fecha && mov.fecha &&
+                                        m.fecha.getFullYear() === mov.fecha.getFullYear() &&
+                                        m.fecha.getMonth() === mov.fecha.getMonth() &&
+                                        m.fecha.getDate() === mov.fecha.getDate();
+                                    return mismaFecha && m.tipoMov === 'E' && m.tipoMin !== 'PA';
+                                })
+                                .reduce((sum, m) => sum + m.cantidad, 0);
+                            
+                            // Obtener detalle de partidas disponibles actuales
+                            const partidasDisponiblesActuales = partidas
+                                .filter(p => p.saldo > 0 && p.tipoMin !== 'PA')
+                                .sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+                            
+                            // Construir detalle de partidas
+                            const detallePartidas = partidasDisponiblesActuales.length > 0
+                                ? partidasDisponiblesActuales
+                                    .map(p => `Partida ${p.id} (${p.tipoMin}, ${p.fechaStr}): ${formatearNumero(p.saldo)}`)
+                                    .join(' | ')
+                                : 'No hay partidas disponibles con saldo';
+                            
+                            // Buscar ingresos pendientes del mismo día que aún no se han procesado
+                            const ingresosPendientesDia = movimientos
+                                .slice(i + 1) // Movimientos después del actual
+                                .filter(m => {
+                                    const mismaFecha = m.fecha && mov.fecha &&
+                                        m.fecha.getFullYear() === mov.fecha.getFullYear() &&
+                                        m.fecha.getMonth() === mov.fecha.getMonth() &&
+                                        m.fecha.getDate() === mov.fecha.getDate();
+                                    return mismaFecha && m.tipoMov === 'I';
+                                });
+                            
+                            // Construir información de ingresos pendientes
+                            let infoIngresosPendientes = '';
+                            if (ingresosPendientesDia.length > 0) {
+                                const totalIngresosPendientes = ingresosPendientesDia.reduce((sum, m) => sum + m.cantidad, 0);
+                                const detalleIngresosPendientes = ingresosPendientesDia
+                                    .map(m => `${m.tipoMin} | ${m.minutaOrigen} | ${formatearNumero(m.cantidad)}`)
+                                    .join(' | ');
+                                
+                                infoIngresosPendientes = [
+                                    `Ingresos pendientes de procesar para ${mov.fechaStr}: ${ingresosPendientesDia.length} movimiento(s)`,
+                                    `Total ingresos pendientes: ${formatearNumero(totalIngresosPendientes)}`,
+                                    `Detalle ingresos pendientes: ${detalleIngresosPendientes}`
+                                ].join('\n');
+                            } else {
+                                infoIngresosPendientes = `No hay ingresos pendientes a la fecha ${mov.fechaStr}`;
+                            }
+                            
+                            // Construir mensaje de error mejorado
+                            const mensajeError = [
+                                `No hay suficiente saldo en las partidas para cubrir el egreso PP.`,
+                                `Fecha: ${mov.fechaStr}`,
+                                `Requerido: ${formatearNumero(mov.cantidad)}`,
+                                `Saldo disponible al inicio del día: ${formatearNumero(Math.max(0, saldoInicioDia))}`,
+                                `Ingresos aplicados del día: ${formatearNumero(ingresosAplicadosDia)}`,
+                                `Egresos aplicados del día: ${formatearNumero(egresosAplicadosDia)}`,
+                                `Disponible inicial (antes de procesar ingresos del día): ${formatearNumero(saldoTotalDisponible)}`,
+                                `Disponible después de procesar ingresos I: ${formatearNumero(saldoFinal)}`,
+                                `Aplicado: ${formatearNumero(cantidadAplicada)}`,
+                                `Faltante: ${formatearNumero(cantidadRestante)}`,
+                                `Cantidad de partidas disponibles: ${partidasDisponiblesActuales.length}`,
+                                `Detalle partidas: ${detallePartidas}`,
+                                ``,
+                                infoIngresosPendientes
+                            ].join('\n');
+                            
                             errores.push({
                                 movimiento: mov,
-                                mensaje: `No hay suficiente saldo en las partidas para cubrir el egreso PP. Requerido: ${mov.cantidad}, Disponible inicial: ${saldoTotalDisponible}, Disponible después de procesar ingresos I: ${saldoFinal}, Aplicado: ${cantidadAplicada}, Faltante: ${cantidadRestante}. Partidas disponibles: ${partidasDisponibles.length}`
+                                mensaje: mensajeError
                             });
                             break; // Detener procesamiento al primer error
                         }
@@ -1427,16 +1458,22 @@ function procesarFIFO(movimientos) {
                     
                     // Guardar la distribución para que el ingreso PP correspondiente la use
                     distribucionesPP[mov.minutaOrigen] = distribucion;
-                    console.log(`[PP EGRESO] Distribución guardada para ${mov.minutaOrigen}: ${distribucion.length} partidas, cantidad total: ${distribucion.reduce((sum, d) => sum + d.cantidad, 0)}`);
+                    
+                    // Log de saldo después del egreso PP
+                    const saldoDespuesEgresoPP = partidas
+                        .filter(p => p.saldo > 0 && p.tipoMin !== 'PA')
+                        .reduce((sum, p) => sum + p.saldo, 0);
+                    console.log(`[EGRESO PP] ${mov.minutaOrigen} | Aplicado: ${(mov.cantidad - cantidadRestante).toLocaleString('es-AR')} | Saldo después: ${saldoDespuesEgresoPP.toLocaleString('es-AR')}`);
                 } else {
                     // Para otros tipos (TRFU, C, ING, etc.), aplicar FIFO (primero las partidas más antiguas)
                     // IMPORTANTE: Estos egresos SÍ cierran partidas cuando el saldo llega a 0
+                    // PERO: Permitir usar partidas cerradas si tienen saldo > 0 (pueden haber sido cerradas por otros egresos del mismo día)
                     const partidasOrdenadas = partidas
                         .filter(p => {
                             // Excluir partidas PA (solo se impactan con egresos PA)
                             if (p.tipoMin === 'PA') return false;
-                            // Excluir partidas cerradas (ya no pueden recibir imputaciones)
-                            if (p.cerrada) return false;
+                            // Incluir partidas con saldo > 0, incluso si están cerradas
+                            // porque pueden haber sido cerradas por otros egresos del mismo día
                             return p.saldo > 0;
                         })
                         .sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
@@ -1460,19 +1497,30 @@ function procesarFIFO(movimientos) {
                         });
                         
                         // Si el saldo llegó a 0, cerrar la partida (solo para egresos NO-PP)
+                        // Si ya estaba cerrada, mantenerla cerrada
                         if (partida.saldo === 0) {
                             partida.cerrada = true;
-                            console.log(`[CIERRE PARTIDA] Partida ${partida.id} cerrada por egreso ${mov.tipoMin} | ${mov.tipoMov}`);
                         }
                     }
 
                     if (cantidadRestante > 0) {
+                        // Calcular saldo total disponible para el mensaje de error
+                        const saldoTotalDisponible = partidas
+                            .filter(p => p.tipoMin !== 'PA' && p.saldo > 0)
+                            .reduce((sum, p) => sum + p.saldo, 0);
+                        
                         errores.push({
                             movimiento: mov,
-                            mensaje: `No hay suficiente saldo en las partidas para cubrir el egreso. Faltante: ${cantidadRestante}`
+                            mensaje: `No hay suficiente saldo en las partidas para cubrir el egreso. Requerido: ${mov.cantidad}, Disponible: ${saldoTotalDisponible}, Faltante: ${cantidadRestante}`
                         });
                         break; // Detener procesamiento al primer error
                     }
+                    
+                    // Log de saldo después del egreso (no PP)
+                    const saldoDespuesEgreso = partidas
+                        .filter(p => p.saldo > 0 && p.tipoMin !== 'PA')
+                        .reduce((sum, p) => sum + p.saldo, 0);
+                    console.log(`[EGRESO] ${mov.tipoMin} | ${mov.minutaOrigen} | Aplicado: ${mov.cantidad.toLocaleString('es-AR')} | Saldo después: ${saldoDespuesEgreso.toLocaleString('es-AR')}`);
                 }
             }
         } catch (error) {
@@ -1524,6 +1572,90 @@ function procesarFIFO(movimientos) {
             
             // Agregar información de pendientes al error (el mensaje se mantiene, los pendientes se muestran en el frontend)
             // No modificamos el mensaje aquí, solo agregamos la información que el frontend mostrará
+        }
+    }
+
+    // Mostrar saldo final del último día procesado con resumen
+    if (fechaAnterior !== null && movimientos.length > 0) {
+        const ultimoMovimiento = movimientos[indiceUltimoProcesado >= 0 ? indiceUltimoProcesado : movimientos.length - 1];
+        if (ultimoMovimiento && ultimoMovimiento.fecha) {
+            const saldoFinal = partidas
+                .filter(p => p.saldo > 0 && p.tipoMin !== 'PA')
+                .reduce((sum, p) => sum + p.saldo, 0);
+            
+            // Calcular totales de ingresos y egresos del último día
+            const fechaUltimoDia = `${ultimoMovimiento.fecha.getFullYear()}-${String(ultimoMovimiento.fecha.getMonth() + 1).padStart(2, '0')}-${String(ultimoMovimiento.fecha.getDate()).padStart(2, '0')}`;
+            const movimientosUltimoDia = movimientos.filter(m => {
+                if (!m.fecha) return false;
+                const fechaM = `${m.fecha.getFullYear()}-${String(m.fecha.getMonth() + 1).padStart(2, '0')}-${String(m.fecha.getDate()).padStart(2, '0')}`;
+                return fechaM === fechaUltimoDia;
+            });
+            
+            const totalIngresosUltimoDia = movimientosUltimoDia
+                .filter(m => m.tipoMov === 'I')
+                .reduce((sum, m) => sum + m.cantidad, 0);
+            
+            const totalEgresosUltimoDia = movimientosUltimoDia
+                .filter(m => m.tipoMov === 'E')
+                .reduce((sum, m) => sum + m.cantidad, 0);
+            
+            // Calcular saldo total incluyendo partidas con saldo negativo o 0 para diagnóstico
+            const saldoTotalIncluyendoNegativos = partidas
+                .filter(p => p.tipoMin !== 'PA')
+                .reduce((sum, p) => sum + p.saldo, 0);
+            
+            // Calcular saldo esperado matemáticamente
+            // El saldo inicial del día debe ser el saldo de las partidas creadas ANTES del día actual
+            // Pero debemos calcular el saldo ORIGINAL de esas partidas (antes de cualquier imputación del día)
+            const saldoInicialUltimoDia = partidas
+                .filter(p => {
+                    if (p.tipoMin === 'PA') return false;
+                    if (!p.fecha || !ultimoMovimiento.fecha) return false;
+                    return p.fecha.getTime() < new Date(ultimoMovimiento.fecha.getFullYear(), ultimoMovimiento.fecha.getMonth(), ultimoMovimiento.fecha.getDate()).getTime();
+                })
+                .reduce((sum, p) => {
+                    // Calcular saldo original de la partida (antes de cualquier imputación del día)
+                    const imputacionesDelDia = p.imputaciones.filter(imp => {
+                        if (!imp.fecha || !ultimoMovimiento.fecha) return false;
+                        return imp.fecha.getFullYear() === ultimoMovimiento.fecha.getFullYear() &&
+                               imp.fecha.getMonth() === ultimoMovimiento.fecha.getMonth() &&
+                               imp.fecha.getDate() === ultimoMovimiento.fecha.getDate();
+                    });
+                    const saldoOriginal = p.saldo - imputacionesDelDia.reduce((s, imp) => s + imp.cantidad, 0);
+                    return sum + saldoOriginal;
+                }, 0);
+            
+            const saldoEsperado = saldoInicialUltimoDia + totalIngresosUltimoDia - totalEgresosUltimoDia;
+            const diferencia = saldoFinal - saldoEsperado;
+            
+            // Listar todas las partidas con su saldo para diagnóstico
+            const partidasConSaldo = partidas
+                .filter(p => p.tipoMin !== 'PA')
+                .map(p => ({
+                    id: p.id,
+                    tipoMin: p.tipoMin,
+                    saldo: p.saldo,
+                    fecha: p.fechaStr
+                }))
+                .sort((a, b) => b.saldo - a.saldo);
+            
+            const partidasNegativas = partidasConSaldo.filter(p => p.saldo < 0);
+            const partidasCero = partidasConSaldo.filter(p => p.saldo === 0);
+            const partidasPositivas = partidasConSaldo.filter(p => p.saldo > 0);
+            
+            const sumaPartidasNegativas = partidasNegativas.reduce((sum, p) => sum + p.saldo, 0);
+            const sumaPartidasPositivas = partidasPositivas.reduce((sum, p) => sum + p.saldo, 0);
+            
+            console.log(`\n[FIN DÍA] ${ultimoMovimiento.fechaStr} - Saldo final disponible: ${saldoFinal.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} | Ingresos: ${totalIngresosUltimoDia.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} | Egresos: ${totalEgresosUltimoDia.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`);
+            console.log(`[FIN DÍA] ${ultimoMovimiento.fechaStr} - Saldo inicial del día: ${saldoInicialUltimoDia.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} | Saldo esperado: ${saldoEsperado.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} | Diferencia: ${diferencia.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} | Saldo total (incl. negativos): ${saldoTotalIncluyendoNegativos.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`);
+            console.log(`[FIN DÍA] ${ultimoMovimiento.fechaStr} - Resumen partidas: ${partidasPositivas.length} positivas (suma: ${sumaPartidasPositivas.toLocaleString('es-AR')}) | ${partidasCero.length} con saldo 0 | ${partidasNegativas.length} negativas (suma: ${sumaPartidasNegativas.toLocaleString('es-AR')})`);
+            
+            if (partidasNegativas.length > 0) {
+                console.log(`[FIN DÍA] ${ultimoMovimiento.fechaStr} - Partidas con saldo negativo:`);
+                partidasNegativas.forEach(p => {
+                    console.log(`[FIN DÍA]   Partida ${p.id} (${p.tipoMin}, ${p.fecha}): ${p.saldo.toLocaleString('es-AR')}`);
+                });
+            }
         }
     }
 
