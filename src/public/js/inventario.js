@@ -226,9 +226,9 @@ async function reprocesarConFechaLimite(archivo, fechaLimite) {
  * Copia la query SQL al portapapeles
  */
 function copiarQuerySQL() {
-    const sqlQuery = `SELECT minuta.TIPO AS TIPO_MIN, mov.TIPO AS TIPO_MOV, mov.MINUTA_ORIGEN, CAST(mov.CANTIDAD AS BIGINT) AS CANTIDAD, CONVERT(VARCHAR(10), mov.FECHA, 23) AS FECHA
+    const sqlQuery = `SELECT minuta.TIPO AS TIPO_MIN, mov.TIPO AS TIPO_MOV, minuta.NUMERO as MINUTA_ORIGEN , CAST(mov.CANTIDAD AS BIGINT) AS CANTIDAD, CONVERT(VARCHAR(10), mov.FECHA, 23) AS FECHA
 FROM MOVIMIENTOS_T AS mov INNER JOIN MINUTAS_T AS minuta ON mov.MINUTA_ORIGEN = minuta.OBJECT_ID 
-WHERE mov.NRO_COMITENTE = '000005003' AND mov.ESPECIE = 'TZX26' AND mov.ESTADO = 'C' AND minuta.ANULADO IS NULL AND (mov.TIPO = 'I' OR mov.TIPO = 'E') 
+WHERE mov.NRO_COMITENTE = '000002856' AND mov.ESPECIE = 'TTM26' AND mov.ESTADO = 'C' AND minuta.ANULADO IS NULL AND (mov.TIPO = 'I' OR mov.TIPO = 'E') 
 ORDER BY mov.FECHA ASC`;
     
     navigator.clipboard.writeText(sqlQuery).then(() => {
@@ -490,25 +490,29 @@ function mostrarResultados(data) {
                     
                     <div class="partida-content">
                         <div class="partida-info" style="background: rgba(30, 142, 62, 0.1); padding: 16px; border-radius: 8px; border: 1px solid rgba(30, 142, 62, 0.2);">
-                            <div class="partida-info-item">
-                                <span class="partida-info-label">TIPO_MIN</span>
-                                <span class="partida-info-value">${partida.tipoMin}</span>
+                            <div class="partida-info-fecha">
+                                <div class="partida-info-item">
+                                    <span class="partida-info-label">Fecha</span>
+                                    <span class="partida-info-value">${partida.fechaStr}</span>
+                                </div>
                             </div>
-                            <div class="partida-info-item">
-                                <span class="partida-info-label">TIPO_MOV</span>
-                                <span class="partida-info-value">${partida.tipoMov}</span>
-                            </div>
-                            <div class="partida-info-item">
-                                <span class="partida-info-label">MINUTA_ORIGEN</span>
-                                <span class="partida-info-value">${partida.minutaOrigen}</span>
-                            </div>
-                            <div class="partida-info-item">
-                                <span class="partida-info-label">Fecha</span>
-                                <span class="partida-info-value">${partida.fechaStr}</span>
-                            </div>
-                            <div class="partida-info-item">
-                                <span class="partida-info-label">Cantidad Inicial</span>
-                                <span class="partida-info-value">${formatearNumero(partida.cantidadInicial)}</span>
+                            <div class="partida-info-resto">
+                                <div class="partida-info-item">
+                                    <span class="partida-info-label">TIPO_MIN</span>
+                                    <span class="partida-info-value">${partida.tipoMin}</span>
+                                </div>
+                                <div class="partida-info-item">
+                                    <span class="partida-info-label">TIPO_MOV</span>
+                                    <span class="partida-info-value">${partida.tipoMov}</span>
+                                </div>
+                                <div class="partida-info-item">
+                                    <span class="partida-info-label">MINUTA_ORIGEN</span>
+                                    <span class="partida-info-value">${partida.minutaOrigen}</span>
+                                </div>
+                                <div class="partida-info-item">
+                                    <span class="partida-info-label">Cantidad Inicial</span>
+                                    <span class="partida-info-value">${formatearNumero(partida.cantidadInicial)}</span>
+                                </div>
                             </div>
                         </div>
                         
@@ -545,9 +549,48 @@ function mostrarResultados(data) {
                                             const cantidadesDifieren = Math.abs(cantidadOriginal) !== Math.abs(cantidadImputada);
                                             const rowClass = cantidadesDifieren ? 'imputacion-cantidad-diferente' : '';
                                             
+                                            // Verificar si es una imputación pendiente x PA
+                                            const esPendienteXPA = imp.pendiente === true || imp.pendienteXPA === true;
+                                            const estaResuelta = imp.resuelta === true;
+                                            const pendienteClass = esPendienteXPA ? 'imputacion-pendiente-x-pa' : '';
+                                            const pendienteStyle = esPendienteXPA && !estaResuelta ? 'background: rgba(255, 152, 0, 0.1); border-left: 3px solid #ff9800;' : 
+                                                                  esPendienteXPA && estaResuelta ? 'background: rgba(76, 175, 80, 0.15); border-left: 3px solid #4caf50;' : '';
+                                            
+                                            let pendienteBadge = '';
+                                            if (esPendienteXPA) {
+                                                if (estaResuelta) {
+                                                    const infoResolucion = imp.fechaResolucionStr ? ` el ${imp.fechaResolucionStr}` : '';
+                                                    const infoPartida = imp.partidaResolucion ? ` en partida #${imp.partidaResolucion}` : '';
+                                                    pendienteBadge = `<span style="background: #4caf50; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-left: 4px;" title="Resuelta${infoResolucion}${infoPartida}">PENDIENTE x PA (RESUELTA)</span>`;
+                                                } else {
+                                                    pendienteBadge = '<span style="background: #ff9800; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-left: 4px;">PENDIENTE x PA</span>';
+                                                }
+                                            }
+                                            
+                                            // Verificar si es una imputación resuelta desde pendiente x PA
+                                            const esResueltaDesdePendiente = imp.resueltaDesdePendienteXPA === true;
+                                            const resueltaClass = esResueltaDesdePendiente ? 'imputacion-resuelta-desde-pendiente' : '';
+                                            const resueltaStyle = esResueltaDesdePendiente ? 'background: rgba(76, 175, 80, 0.1); border-left: 3px solid #4caf50;' : '';
+                                            const resueltaBadge = esResueltaDesdePendiente ? '<span style="background: #4caf50; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-left: 4px;">RESUELTA desde PA</span>' : '';
+                                            
+                                            // Combinar estilos y clases
+                                            const combinedClass = `${rowClass} ${pendienteClass} ${resueltaClass}`;
+                                            const combinedStyle = esPendienteXPA ? pendienteStyle : (esResueltaDesdePendiente ? resueltaStyle : '');
+                                            const combinedBadge = esPendienteXPA ? pendienteBadge : (esResueltaDesdePendiente ? resueltaBadge : '');
+                                            
+                                            // Información adicional para mostrar
+                                            let infoAdicional = '';
+                                            if (esPendienteXPA && !estaResuelta) {
+                                                infoAdicional = ' <span style="color: #ff9800; font-size: 11px;">(pendiente)</span>';
+                                            } else if (esPendienteXPA && estaResuelta) {
+                                                infoAdicional = ' <span style="color: #4caf50; font-size: 11px;">(resuelta)</span>';
+                                            } else if (esResueltaDesdePendiente && imp.partidaPAOrigen) {
+                                                infoAdicional = ` <span style="color: #4caf50; font-size: 11px;" title="Resuelta desde partida PA #${imp.partidaPAOrigen}">(resuelta)</span>`;
+                                            }
+                                            
                                             return `
-                                                <tr class="${rowClass}">
-                                                    <td>${imp.fechaStr}</td>
+                                                <tr class="${combinedClass}" style="${combinedStyle}">
+                                                    <td>${imp.fechaStr}${combinedBadge}</td>
                                                     <td>${imp.tipoMin}</td>
                                                     <td>${imp.tipoMov}</td>
                                                     <td>${imp.minutaOrigen}</td>
@@ -557,7 +600,7 @@ function mostrarResultados(data) {
                                                     <td style="color: ${cantidadImputada < 0 ? '#d93025' : '#1e8e3e'};">
                                                         ${cantidadImputada > 0 ? '+' : ''}${formatearNumero(cantidadImputada)}
                                                     </td>
-                                                    <td class="${impSaldoClass}">${formatearNumero(imp.saldoDespues)}</td>
+                                                    <td class="${impSaldoClass}">${formatearNumero(imp.saldoDespues)}${infoAdicional}</td>
                                                 </tr>
                                             `;
                                         }).join('')}

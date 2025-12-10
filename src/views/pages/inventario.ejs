@@ -63,10 +63,20 @@
             transform: rotate(-90deg);
         }
         .partida-info {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 16px;
+            align-items: flex-start;
+        }
+        .partida-info-fecha {
+            flex-shrink: 0;
+            min-width: 100px;
+        }
+        .partida-info-resto {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 12px;
-            margin-bottom: 16px;
+            flex: 1;
         }
         .partida-info-item {
             display: flex;
@@ -306,9 +316,9 @@
                                 El Excel se puede generar ejecutando esta query en la base de datos:
                             </p>
                             <div style="position: relative;">
-                                <pre id="sqlQuery" style="background: #f8f9fa; border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; font-size: 11px; font-family: 'Courier New', monospace; overflow-x: auto; margin: 0; line-height: 1.4; color: var(--text-primary);"><code>SELECT minuta.TIPO AS TIPO_MIN, mov.TIPO AS TIPO_MOV, mov.MINUTA_ORIGEN, CAST(mov.CANTIDAD AS BIGINT) AS CANTIDAD, CONVERT(VARCHAR(10), mov.FECHA, 23) AS FECHA
+                                <pre id="sqlQuery" style="background: #f8f9fa; border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; font-size: 11px; font-family: 'Courier New', monospace; overflow-x: auto; margin: 0; line-height: 1.4; color: var(--text-primary);"><code>SELECT minuta.TIPO AS TIPO_MIN, mov.TIPO AS TIPO_MOV, minuta.NUMERO as MINUTA_ORIGEN , CAST(mov.CANTIDAD AS BIGINT) AS CANTIDAD, CONVERT(VARCHAR(10), mov.FECHA, 23) AS FECHA
 FROM MOVIMIENTOS_T AS mov INNER JOIN MINUTAS_T AS minuta ON mov.MINUTA_ORIGEN = minuta.OBJECT_ID 
-WHERE mov.NRO_COMITENTE = '000005003' AND mov.ESPECIE = 'TZX26' AND mov.ESTADO = 'C' AND minuta.ANULADO IS NULL AND (mov.TIPO = 'I' OR mov.TIPO = 'E') 
+WHERE mov.NRO_COMITENTE = '000002856' AND mov.ESPECIE = 'TTM26' AND mov.ESTADO = 'C' AND minuta.ANULADO IS NULL AND (mov.TIPO = 'I' OR mov.TIPO = 'E') 
 ORDER BY mov.FECHA ASC</code></pre>
                                 <button onclick="copiarQuerySQL()" class="copy-sql-btn" title="Copiar query">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

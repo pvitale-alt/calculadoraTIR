@@ -637,6 +637,83 @@ function procesarFIFO(movimientos) {
                         imputaciones: []
                     };
                     partidas.push(partida);
+                    
+                    // Si es una partida que no es PA, verificar si hay imputaciones pendientes x PA para aplicar
+                    if (mov.tipoMin !== 'PA') {
+                        // Buscar todas las imputaciones pendientes x PA en todas las partidas PA
+                        for (const partidaPA of partidas.filter(p => p.tipoMin === 'PA')) {
+                            // Buscar imputaciones pendientes x PA que aún no han sido resueltas
+                            const imputacionesPendientes = partidaPA.imputaciones.filter(imp => 
+                                (imp.pendiente === true || imp.pendienteXPA === true) && 
+                                !imp.resuelta && 
+                                imp.cantidad < 0 // Solo egresos pendientes
+                            );
+                            
+                            // Aplicar imputaciones pendientes contra la nueva partida
+                            for (const impPendiente of imputacionesPendientes) {
+                                if (partida.saldo <= 0) break; // No hay más saldo en la nueva partida
+                                
+                                const cantidadPendiente = Math.abs(impPendiente.cantidad);
+                                const cantidadAplicar = Math.min(partida.saldo, cantidadPendiente);
+                                
+                                if (cantidadAplicar > 0) {
+                                    // Reducir el saldo de la nueva partida
+                                    partida.saldo -= cantidadAplicar;
+                                    
+                                    // Crear imputación en la nueva partida para el egreso pendiente
+                                    partida.imputaciones.push({
+                                        tipoMin: impPendiente.tipoMin,
+                                        tipoMov: impPendiente.tipoMov,
+                                        minutaOrigen: impPendiente.minutaOrigen,
+                                        fecha: impPendiente.fecha,
+                                        fechaStr: impPendiente.fechaStr,
+                                        cantidad: -cantidadAplicar,
+                                        cantidadOriginal: impPendiente.cantidadOriginal,
+                                        saldoDespues: partida.saldo,
+                                        resueltaDesdePendienteXPA: true, // Marca que fue resuelta desde una pendiente x PA
+                                        partidaPAOrigen: partidaPA.id // Referencia a la partida PA de origen
+                                    });
+                                    
+                                    // Actualizar la imputación pendiente en la partida PA
+                                    // Si se aplicó completamente, marcarla como resuelta
+                                    if (cantidadAplicar >= cantidadPendiente) {
+                                        impPendiente.resuelta = true;
+                                        impPendiente.partidaResolucion = partida.id;
+                                        impPendiente.fechaResolucion = mov.fecha;
+                                        impPendiente.fechaResolucionStr = mov.fechaStr;
+                                    } else {
+                                        // Si solo se aplicó parcialmente, crear una nueva imputación pendiente con el resto
+                                        const cantidadRestante = cantidadPendiente - cantidadAplicar;
+                                        partidaPA.imputaciones.push({
+                                            tipoMin: impPendiente.tipoMin,
+                                            tipoMov: impPendiente.tipoMov,
+                                            minutaOrigen: impPendiente.minutaOrigen,
+                                            fecha: impPendiente.fecha,
+                                            fechaStr: impPendiente.fechaStr,
+                                            cantidad: -cantidadRestante,
+                                            cantidadOriginal: impPendiente.cantidadOriginal,
+                                            saldoDespues: partidaPA.saldo,
+                                            pendiente: true,
+                                            pendienteXPA: true
+                                        });
+                                        
+                                        // Marcar la original como resuelta parcialmente
+                                        impPendiente.resuelta = true;
+                                        impPendiente.resueltaParcial = true;
+                                        impPendiente.cantidadResuelta = cantidadAplicar;
+                                        impPendiente.partidaResolucion = partida.id;
+                                        impPendiente.fechaResolucion = mov.fecha;
+                                        impPendiente.fechaResolucionStr = mov.fechaStr;
+                                    }
+                                    
+                                    // Si el saldo llegó a 0, cerrar la partida
+                                    if (partida.saldo === 0) {
+                                        partida.cerrada = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 } else if (mov.tipoMin === 'PP') {
                     // Procesar ingreso PP usando función auxiliar
                     const resultado = procesarIngresoPP(
@@ -750,16 +827,48 @@ function procesarFIFO(movimientos) {
                     }
 
                     if (cantidadRestante > 0) {
-                        // Calcular saldo total disponible para el mensaje de error
+                        // Calcular saldo total disponible (no-PA) para el mensaje de error
                         const saldoTotalDisponible = partidas
                             .filter(p => p.tipoMin !== 'PA' && p.saldo > 0)
                             .reduce((sum, p) => sum + p.saldo, 0);
                         
-                        errores.push({
-                            movimiento: mov,
-                            mensaje: `No hay suficiente saldo en las partidas para cubrir el egreso. Requerido: ${mov.cantidad}, Disponible: ${saldoTotalDisponible}, Faltante: ${cantidadRestante}`
-                        });
-                        break; // Detener procesamiento al primer error
+                        // Verificar si hay saldo disponible en partidas PA
+                        const partidasPADisponibles = partidas
+                            .filter(p => p.tipoMin === 'PA' && p.saldo > 0)
+                            .sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+                        
+                        const saldoPADisponible = partidasPADisponibles.reduce((sum, p) => sum + p.saldo, 0);
+                        
+                        // Si hay saldo PA disponible, crear imputación pendiente x PA en lugar de error
+                        if (saldoPADisponible > 0 && cantidadRestante <= saldoPADisponible) {
+                            // Crear imputación pendiente x PA en la primera partida PA disponible
+                            const partidaPA = partidasPADisponibles[0];
+                            const cantidadPendiente = cantidadRestante;
+                            
+                            // Crear imputación pendiente (no reduce el saldo del PA, solo queda registrada como pendiente)
+                            partidaPA.imputaciones.push({
+                                tipoMin: mov.tipoMin,
+                                tipoMov: mov.tipoMov,
+                                minutaOrigen: mov.minutaOrigen,
+                                fecha: mov.fecha,
+                                fechaStr: mov.fechaStr,
+                                cantidad: -cantidadPendiente,
+                                cantidadOriginal: mov.cantidad,
+                                saldoDespues: partidaPA.saldo, // El saldo del PA no cambia
+                                pendiente: true, // Marca especial para indicar que es pendiente x PA
+                                pendienteXPA: true // Marca adicional para identificar imputaciones pendientes x PA
+                            });
+                            
+                            // No generar error, continuar procesamiento
+                            cantidadRestante = 0;
+                        } else {
+                            // No hay suficiente saldo ni en partidas no-PA ni en PA, generar error
+                            errores.push({
+                                movimiento: mov,
+                                mensaje: `No hay suficiente saldo en las partidas para cubrir el egreso. Requerido: ${mov.cantidad}, Disponible: ${saldoTotalDisponible}, Faltante: ${cantidadRestante}`
+                            });
+                            break; // Detener procesamiento al primer error
+                        }
                     }
                     
                 }
