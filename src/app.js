@@ -20,6 +20,12 @@ const PORT = process.env.PORT || 3000;
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
+// Ruta explícita para favicon (algunos navegadores lo buscan directamente)
+app.get('/favicon.ico', (req, res) => {
+    res.type('image/x-icon');
+    res.sendFile(path.join(__dirname, 'public', 'images', 'logo.ico'));
+});
+
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

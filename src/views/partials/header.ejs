@@ -2,7 +2,9 @@
     <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 64px; width: 100%;">
         <!-- Logo y Tabs de navegación a la izquierda -->
         <div style="display: flex; align-items: center; gap: 16px;">
-            <img src="/images/logo.png" alt="Logo Mercap" style="height: 30px; width: auto; display: block; opacity: 0.85;" onerror="this.style.display='none';" />
+            <div style="display: flex; align-items: center; flex-shrink: 0;">
+                <img src="/images/logo.png" alt="Logo Mercap" style="height: 30px; width: auto; display: block; opacity: 0.85;" onerror="this.style.display='none';" />
+            </div>
             <nav class="header-tabs" style="display: flex; align-items: center; justify-content: flex-start;">
                 <a href="/calculadora" class="header-tab <%= activeMenu === 'calculadora' ? 'active' : '' %>">
                     <span>Calculadora</span>
