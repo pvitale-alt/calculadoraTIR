@@ -673,6 +673,21 @@ async function autocompletarCupones() {
             await window.cuponesModule.renderizarCupones();
         }
         
+        // Actualizar coeficientes CER después de que la estructura esté completamente cargada
+        const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
+        if (ajusteCER) {
+            // Esperar un pequeño delay para asegurar que el DOM esté completamente actualizado
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            if (window.actualizarCERValuacion && typeof window.actualizarCERValuacion === 'function') {
+                await window.actualizarCERValuacion();
+            }
+            
+            if (window.actualizarCoeficientesCER && typeof window.actualizarCoeficientesCER === 'function') {
+                await window.actualizarCoeficientesCER();
+            }
+        }
+        
         console.log('[autocompletarCupones] Cupones creados exitosamente:', todosLosCupones.length);
         
     } catch (error) {

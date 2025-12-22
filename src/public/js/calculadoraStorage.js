@@ -628,6 +628,32 @@ function aplicarCalculadoraEnFormulario(calculadora = {}) {
             rentaTNAInput.style.cursor = 'not-allowed';
         }
     }
+    
+    // Actualizar estado de fórmula según el valor de tasa
+    if (window.actualizarEstadoFormula && typeof window.actualizarEstadoFormula === 'function') {
+        window.actualizarEstadoFormula();
+    }
+    
+    // Actualizar visibilidad de coeficientes CER
+    if (window.actualizarVisibilidadCoeficientesCER && typeof window.actualizarVisibilidadCoeficientesCER === 'function') {
+        window.actualizarVisibilidadCoeficientesCER();
+    }
+    
+    // Actualizar coeficientes CER después de cargar la estructura (solo si ajuste CER está activado)
+    // Usar setTimeout para asegurar que el DOM esté completamente actualizado
+    setTimeout(async () => {
+        const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
+        
+        if (ajusteCER) {
+            if (window.actualizarCERValuacion && typeof window.actualizarCERValuacion === 'function') {
+                await window.actualizarCERValuacion();
+            }
+            
+            if (window.actualizarCoeficientesCER && typeof window.actualizarCoeficientesCER === 'function') {
+                await window.actualizarCoeficientesCER();
+            }
+        }
+    }, 300);
 }
 
 // Funciones relacionadas con CER movidas a calculadora/calculadoraCER.js
