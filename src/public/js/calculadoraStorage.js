@@ -675,24 +675,32 @@ document.addEventListener('DOMContentLoaded', () => {
         const año = hoy.getFullYear();
         fechaValuacionInput.value = `${dia}/${mes}/${año}`;
         
-        // Actualizar CER de valuación y coeficientes
+        // Actualizar CER de valuación y coeficientes (solo si ajuste CER está activado)
         setTimeout(async () => {
-            if (window.actualizarCERValuacion) {
-                await window.actualizarCERValuacion();
+            const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
+            
+            if (ajusteCER) {
+                if (window.actualizarCERValuacion) {
+                    await window.actualizarCERValuacion();
+                }
+                if (window.actualizarCoeficientesCER) {
+                    await window.actualizarCoeficientesCER();
+                }
             }
-            if (window.actualizarCoeficientesCER) {
-                await window.actualizarCoeficientesCER();
-            }
+            
             if (window.actualizarVisibilidadCoeficientesCER) {
                 window.actualizarVisibilidadCoeficientesCER();
             }
         }, 200);
     } else if (fechaValuacionInput && fechaValuacionInput.value) {
-        // Si ya hay una fecha valuación, actualizar coeficientes
+        // Si ya hay una fecha valuación, actualizar coeficientes (solo si ajuste CER está activado)
         setTimeout(async () => {
-            if (window.actualizarCoeficientesCER) {
+            const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
+            
+            if (ajusteCER && window.actualizarCoeficientesCER) {
                 await window.actualizarCoeficientesCER();
             }
+            
             if (window.actualizarVisibilidadCoeficientesCER) {
                 window.actualizarVisibilidadCoeficientesCER();
             }
@@ -705,14 +713,19 @@ document.addEventListener('DOMContentLoaded', () => {
         let valorAnterior = fechaValuacionInput.value;
         let timeoutId = null;
         
-        // Función para actualizar CER y refrescar tabla con los nuevos valores
+        // Función para actualizar CER y refrescar tabla con los nuevos valores (solo si ajuste CER está activado)
         const actualizarYRefrescar = async () => {
-            if (window.actualizarCERValuacion) {
-                await window.actualizarCERValuacion();
+            const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
+            
+            if (ajusteCER) {
+                if (window.actualizarCERValuacion) {
+                    await window.actualizarCERValuacion();
+                }
+                if (window.actualizarCoeficientesCER) {
+                    await window.actualizarCoeficientesCER();
+                }
             }
-            if (window.actualizarCoeficientesCER) {
-                await window.actualizarCoeficientesCER();
-            }
+            
             if (window.refrescarTablaCupones) {
                 await window.refrescarTablaCupones();
             }
@@ -754,45 +767,55 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Listener para intervaloFin: actualizar CER de valuación y coeficientes
+    // Listener para intervaloFin: actualizar CER de valuación y coeficientes (solo si ajuste CER está activado)
     const intervaloFinInput = document.getElementById('intervaloFin');
     if (intervaloFinInput) {
         const actualizarIntervaloFin = async () => {
-            if (window.actualizarCERValuacion) {
-                await window.actualizarCERValuacion();
-            }
-            if (window.actualizarCoeficientesCER) {
-                await window.actualizarCoeficientesCER();
+            const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
+            
+            if (ajusteCER) {
+                if (window.actualizarCERValuacion) {
+                    await window.actualizarCERValuacion();
+                }
+                if (window.actualizarCoeficientesCER) {
+                    await window.actualizarCoeficientesCER();
+                }
             }
         };
         intervaloFinInput.addEventListener('change', actualizarIntervaloFin);
         intervaloFinInput.addEventListener('input', actualizarIntervaloFin);
     }
     
-    // Listener para fechaEmision: actualizar coeficiente CER Emisión
+    // Listener para fechaEmision: actualizar coeficiente CER Emisión (solo si ajuste CER está activado)
     const fechaEmisionInput = document.getElementById('fechaEmision');
     if (fechaEmisionInput) {
         let valorAnteriorEmision = fechaEmisionInput.value;
         const manejarCambioEmision = async () => {
+            const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
             const valorActual = fechaEmisionInput.value;
-            if (valorActual !== valorAnteriorEmision && valorActual.length === 10) {
+            if (ajusteCER && valorActual !== valorAnteriorEmision && valorActual.length === 10) {
                 valorAnteriorEmision = valorActual;
-                await window.actualizarCoeficientesCER();
+                if (window.actualizarCoeficientesCER) {
+                    await window.actualizarCoeficientesCER();
+                }
             }
         };
         fechaEmisionInput.addEventListener('change', manejarCambioEmision);
         fechaEmisionInput.addEventListener('blur', manejarCambioEmision);
     }
     
-    // Listener para fechaCompra: actualizar coeficiente CER Compra
+    // Listener para fechaCompra: actualizar coeficiente CER Compra (solo si ajuste CER está activado)
     const fechaCompraInput = document.getElementById('fechaCompra');
     if (fechaCompraInput) {
         let valorAnteriorCompra = fechaCompraInput.value;
         const manejarCambioCompra = async () => {
+            const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
             const valorActual = fechaCompraInput.value;
-            if (valorActual !== valorAnteriorCompra && valorActual.length === 10) {
+            if (ajusteCER && valorActual !== valorAnteriorCompra && valorActual.length === 10) {
                 valorAnteriorCompra = valorActual;
-                await window.actualizarCoeficientesCER();
+                if (window.actualizarCoeficientesCER) {
+                    await window.actualizarCoeficientesCER();
+                }
                 if (window.tirModule && typeof window.tirModule.resetTIR === 'function') {
                     window.tirModule.resetTIR();
                 }
@@ -972,6 +995,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Listener para el select de tasa: habilitar/deshabilitar rentaTNA
     const tasaSelect = document.getElementById('tasa');
     const rentaTNAInputTasa = document.getElementById('rentaTNA');
+    const formulaSelect = document.getElementById('formula');
+    // intervaloFinInput ya está declarado arriba (línea 771), no redeclarar
+    const cantidadTasasGroup = document.getElementById('cantidadTasasGroup');
+    const cantidadTasasInput = document.getElementById('cantidadTasas');
     
     const actualizarEstadoRentaTNA = () => {
         if (!tasaSelect || !rentaTNAInputTasa) {
@@ -995,14 +1022,130 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
+    // Función para actualizar el estado del campo fórmula y campos relacionados
+    const actualizarEstadoFormula = () => {
+        if (!tasaSelect || !formulaSelect) {
+            return;
+        }
+        
+        const valorTasa = tasaSelect.value;
+        const valorFormula = formulaSelect.value;
+        
+        // Obtener intervaloFinInput si no está disponible (puede estar declarado arriba)
+        const intervaloFinInputLocal = intervaloFinInput || document.getElementById('intervaloFin');
+        const cantidadTasasGroupLocal = cantidadTasasGroup || document.getElementById('cantidadTasasGroup');
+        const cantidadTasasInputLocal = cantidadTasasInput || document.getElementById('cantidadTasas');
+        
+        // Si la tasa no es "Tasa fija", hacer el campo fórmula obligatorio
+        if (valorTasa && valorTasa !== 'tasa-fija' && valorTasa !== '') {
+            formulaSelect.required = true;
+            formulaSelect.classList.remove('input-opcional');
+            formulaSelect.classList.add('input');
+            
+            // Si no hay fórmula seleccionada, mostrar error visual
+            if (!valorFormula) {
+                formulaSelect.style.borderColor = '#d93025';
+                formulaSelect.style.borderWidth = '2px';
+            } else {
+                formulaSelect.style.borderColor = '';
+                formulaSelect.style.borderWidth = '';
+            }
+        } else {
+            // Si es "Tasa fija" o no hay tasa seleccionada, hacer el campo opcional
+            formulaSelect.required = false;
+            formulaSelect.classList.remove('input');
+            formulaSelect.classList.add('input-opcional');
+            formulaSelect.style.borderColor = '';
+            formulaSelect.style.borderWidth = '';
+            
+            // Ocultar campo "Cantidad tasas" y desbloquear intervaloFin
+            if (cantidadTasasGroupLocal) {
+                cantidadTasasGroupLocal.style.display = 'none';
+            }
+            if (cantidadTasasInputLocal) {
+                cantidadTasasInputLocal.value = '';
+                cantidadTasasInputLocal.required = false;
+            }
+            if (intervaloFinInputLocal) {
+                intervaloFinInputLocal.disabled = false;
+                intervaloFinInputLocal.readOnly = false;
+                intervaloFinInputLocal.style.backgroundColor = '';
+                intervaloFinInputLocal.style.cursor = '';
+            }
+        }
+        
+        // Si la fórmula es "Promedio N tasas" Y la tasa no es "Tasa fija"
+        if (valorFormula === 'promedio-n-tasas' && valorTasa && valorTasa !== 'tasa-fija' && valorTasa !== '') {
+            // Mostrar campo "Cantidad tasas"
+            if (cantidadTasasGroupLocal) {
+                cantidadTasasGroupLocal.style.display = 'block';
+            }
+            if (cantidadTasasInputLocal) {
+                cantidadTasasInputLocal.required = true;
+            }
+            
+            // Bloquear y vaciar intervaloFin
+            if (intervaloFinInputLocal) {
+                intervaloFinInputLocal.value = '';
+                intervaloFinInputLocal.disabled = true;
+                intervaloFinInputLocal.readOnly = true;
+                intervaloFinInputLocal.style.backgroundColor = '#f1f3f4';
+                intervaloFinInputLocal.style.cursor = 'not-allowed';
+            }
+        } else {
+            // Si no es "Promedio N tasas", ocultar campo "Cantidad tasas" y desbloquear intervaloFin
+            if (cantidadTasasGroupLocal) {
+                cantidadTasasGroupLocal.style.display = 'none';
+            }
+            if (cantidadTasasInputLocal) {
+                cantidadTasasInputLocal.value = '';
+                cantidadTasasInputLocal.required = false;
+            }
+            if (intervaloFinInputLocal) {
+                intervaloFinInputLocal.disabled = false;
+                intervaloFinInputLocal.readOnly = false;
+                intervaloFinInputLocal.style.backgroundColor = '';
+                intervaloFinInputLocal.style.cursor = '';
+            }
+        }
+    };
+    
     if (tasaSelect && rentaTNAInputTasa) {
-        tasaSelect.addEventListener('change', actualizarEstadoRentaTNA);
-        tasaSelect.addEventListener('input', actualizarEstadoRentaTNA);
+        tasaSelect.addEventListener('change', () => {
+            actualizarEstadoRentaTNA();
+            actualizarEstadoFormula();
+        });
+        tasaSelect.addEventListener('input', () => {
+            actualizarEstadoRentaTNA();
+            actualizarEstadoFormula();
+        });
         // Inicializar estado al cargar (con un pequeño delay para asegurar que el DOM esté listo)
         setTimeout(() => {
             actualizarEstadoRentaTNA();
+            actualizarEstadoFormula();
         }, 100);
     }
+    
+    if (formulaSelect) {
+        formulaSelect.addEventListener('change', () => {
+            actualizarEstadoFormula();
+        });
+        formulaSelect.addEventListener('input', () => {
+            actualizarEstadoFormula();
+        });
+        // Inicializar estado al cargar
+        setTimeout(() => {
+            actualizarEstadoFormula();
+        }, 100);
+    }
+    
+    // También inicializar cuando cambia la tasa (ya está en el listener de tasaSelect)
+    // Asegurar que se ejecute al cargar la página
+    setTimeout(() => {
+        if (tasaSelect && formulaSelect) {
+            actualizarEstadoFormula();
+        }
+    }, 200);
 });
 
 /**

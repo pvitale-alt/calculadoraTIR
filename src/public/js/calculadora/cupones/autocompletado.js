@@ -402,44 +402,49 @@ async function crearFilasCupones() {
             feriados
         );
         
-        // Calcular final intervalo
-        // IMPORTANTE: Para calculadoras CON ajuste CER, SIEMPRE usar fechaLiquidacion como base
-        // Para calculadoras SIN ajuste CER, usar fechaFinDev como base
-        const ajusteCER = datos.ajusteCER || false;
+        // Obtener fórmula seleccionada
+        const formulaSelect = document.getElementById('formula');
+        const formula = formulaSelect?.value || 'promedio-aritmetico';
         
-        // Para calculadoras CON ajuste CER: fechaBaseFinalIntervalo = fechaLiquidacion
-        // Para calculadoras SIN ajuste CER: fechaBaseFinalIntervalo = fechaFinDev
-        const fechaBaseFinalIntervalo = ajusteCER ? fechaLiquidacion : fechaFinDev;
-        
-        // Usar feriados ya cargados en memoria
-        let finalIntervalo = window.cuponesDiasHabiles.sumarDiasHabiles(
-            fechaBaseFinalIntervalo,
-            datos.intervaloFin,
-            feriados
-        );
+        // Calcular final intervalo (solo si no es "Promedio N tasas")
+        let finalIntervalo = null;
+        if (formula !== 'promedio-n-tasas') {
+            // IMPORTANTE: Para todas las calculadoras (con y sin ajuste CER), usar fechaLiquidacion como base
+            const fechaBaseFinalIntervalo = fechaLiquidacion;
+            
+            // Usar feriados ya cargados en memoria
+            finalIntervalo = window.cuponesDiasHabiles.sumarDiasHabiles(
+                fechaBaseFinalIntervalo,
+                datos.intervaloFin,
+                feriados
+            );
+        }
         
         // Validación: si hay fecha valuación y las fechas de intervalo son mayores, ajustar
-        // SOLO para calculadoras con ajuste CER
-        if (ajusteCER && datos.fechaValuacion) {
-            const fechaValuacionDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(datos.fechaValuacion));
-            if (fechaValuacionDate) {
-                // Si inicioIntervalo es mayor a fecha valuación, usar fecha valuación + intervaloInicio
-                if (inicioIntervalo > fechaValuacionDate) {
-                    inicioIntervalo = window.cuponesDiasHabiles.sumarDiasHabiles(
-                        fechaValuacionDate,
-                        datos.intervaloInicio,
-                        feriados
-                    );
-                }
-                
-                // Si finalIntervalo es mayor a fecha valuación, usar fecha valuación + intervaloFin
-                // PERO solo si la fecha base original (fechaLiquidacion) es mayor a fecha valuación
-                if (finalIntervalo > fechaValuacionDate && fechaLiquidacion > fechaValuacionDate) {
-                    finalIntervalo = window.cuponesDiasHabiles.sumarDiasHabiles(
-                        fechaValuacionDate,
-                        datos.intervaloFin,
-                        feriados
-                    );
+        // SOLO para calculadoras con ajuste CER y solo si no es "Promedio N tasas"
+        if (formula !== 'promedio-n-tasas') {
+            const ajusteCER = datos.ajusteCER || false;
+            if (ajusteCER && datos.fechaValuacion) {
+                const fechaValuacionDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(datos.fechaValuacion));
+                if (fechaValuacionDate) {
+                    // Si inicioIntervalo es mayor a fecha valuación, usar fecha valuación + intervaloInicio
+                    if (inicioIntervalo > fechaValuacionDate) {
+                        inicioIntervalo = window.cuponesDiasHabiles.sumarDiasHabiles(
+                            fechaValuacionDate,
+                            datos.intervaloInicio,
+                            feriados
+                        );
+                    }
+                    
+                    // Si finalIntervalo es mayor a fecha valuación, usar fecha valuación + intervaloFin
+                    // PERO solo si la fecha base original (fechaLiquidacion) es mayor a fecha valuación
+                    if (finalIntervalo && finalIntervalo > fechaValuacionDate && fechaLiquidacion > fechaValuacionDate) {
+                        finalIntervalo = window.cuponesDiasHabiles.sumarDiasHabiles(
+                            fechaValuacionDate,
+                            datos.intervaloFin,
+                            feriados
+                        );
+                    }
                 }
             }
         }
@@ -447,7 +452,7 @@ async function crearFilasCupones() {
         // Buscar valores CER para inicio y final intervalo
         // Usar valores CER ya cargados en memoria
         const valorCERInicio = window.cuponesCER.buscarValorCERPorFecha(inicioIntervalo, valoresCER);
-        const valorCERFinal = window.cuponesCER.buscarValorCERPorFecha(finalIntervalo, valoresCER);
+        const valorCERFinal = finalIntervalo ? window.cuponesCER.buscarValorCERPorFecha(finalIntervalo, valoresCER) : null;
         
         // Convertir fechas a formato DD/MM/AAAA para mostrar
         const fechaInicioStr = convertirFechaYYYYMMDDaDDMMAAAA(formatearFechaInput(fechaInicio), '/');
@@ -455,7 +460,7 @@ async function crearFilasCupones() {
         const fechaLiquidacionStr = convertirFechaYYYYMMDDaDDMMAAAA(formatearFechaInput(fechaLiquidacion), '/');
         const fechaPagoStr = convertirFechaYYYYMMDDaDDMMAAAA(formatearFechaInput(fechaPago), '/');
         const inicioIntervaloStr = convertirFechaYYYYMMDDaDDMMAAAA(formatearFechaInput(inicioIntervalo), '/');
-        const finalIntervaloStr = convertirFechaYYYYMMDDaDDMMAAAA(formatearFechaInput(finalIntervalo), '/');
+        const finalIntervaloStr = finalIntervalo ? convertirFechaYYYYMMDDaDDMMAAAA(formatearFechaInput(finalIntervalo), '/') : '';
         
         // Formatear valores CER (4 decimales, usar punto como separador decimal para inputs HTML)
         // Los inputs HTML type="number" requieren punto, no coma
@@ -614,13 +619,20 @@ async function autocompletarCupones() {
         }
         
         // Actualizar CER de valuación, coeficientes y visibilidad después de cargar los cupones
+        // Solo si la calculadora tiene ajuste CER activado
         setTimeout(async () => {
-            if (window.actualizarCERValuacion) {
-                await window.actualizarCERValuacion();
+            const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
+            
+            if (ajusteCER) {
+                if (window.actualizarCERValuacion) {
+                    await window.actualizarCERValuacion();
+                }
+                if (window.actualizarCoeficientesCER) {
+                    await window.actualizarCoeficientesCER();
+                }
             }
-            if (window.actualizarCoeficientesCER) {
-                await window.actualizarCoeficientesCER();
-            }
+            
+            // Actualizar visibilidad siempre (para mostrar/ocultar columnas según ajusteCER)
             if (window.actualizarVisibilidadCoeficientesCER) {
                 window.actualizarVisibilidadCoeficientesCER();
             }

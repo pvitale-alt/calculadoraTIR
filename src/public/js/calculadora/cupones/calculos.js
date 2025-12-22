@@ -426,31 +426,125 @@ function limpiarCacheTAMAR() {
  * Calcular promedio de TAMAR para un cupón entre inicio y final intervalo
  */
 async function calcularPromedioTAMARParaCupon(cupon) {
-    if (!cupon.inicioIntervalo || !cupon.finalIntervalo) {
+    if (!cupon.inicioIntervalo) {
         return null;
     }
 
     try {
-        // Convertir fechas de DD/MM/AAAA a YYYY-MM-DD
-        let fechaDesde = cupon.inicioIntervalo;
-        let fechaHasta = cupon.finalIntervalo;
+        // Obtener fórmula seleccionada
+        const formulaSelect = document.getElementById('formula');
+        const formula = formulaSelect?.value || 'promedio-aritmetico';
         
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaDesde)) {
-            fechaDesde = convertirFechaDDMMAAAAaYYYYMMDD(fechaDesde);
-        }
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaHasta)) {
-            fechaHasta = convertirFechaDDMMAAAAaYYYYMMDD(fechaHasta);
-        }
+        let valores = [];
+        
+        if (formula === 'promedio-n-tasas') {
+            // Promedio N tasas: calcular promedio de N tasas partiendo desde fecha inicio -X (en días hábiles)
+            const cantidadTasasInput = document.getElementById('cantidadTasas');
+            const cantidadTasas = parseInt(cantidadTasasInput?.value || '0', 10);
+            
+            if (cantidadTasas <= 0) {
+                return null;
+            }
+            
+            // Obtener intervaloInicio del formulario
+            const intervaloInicioInput = document.getElementById('intervaloInicio');
+            const intervaloInicio = parseInt(intervaloInicioInput?.value || '0', 10);
+            
+            // Convertir fecha inicio a Date
+            let fechaInicioStr = cupon.fechaInicio || cupon.inicioIntervalo;
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaInicioStr)) {
+                fechaInicioStr = convertirFechaDDMMAAAAaYYYYMMDD(fechaInicioStr);
+            }
+            
+            const fechaInicioDate = crearFechaDesdeString(fechaInicioStr);
+            if (!fechaInicioDate) {
+                return null;
+            }
+            
+            // Calcular rango de fechas para cargar feriados (con margen)
+            const fechaDesdeDate = new Date(fechaInicioDate);
+            fechaDesdeDate.setDate(fechaDesdeDate.getDate() + intervaloInicio - cantidadTasas - 60); // Margen hacia atrás
+            const fechaHastaDate = new Date(fechaInicioDate);
+            fechaHastaDate.setDate(fechaHastaDate.getDate() + intervaloInicio + 60); // Margen hacia adelante
+            
+            const fechaDesde = formatearFechaInput(fechaDesdeDate);
+            const fechaHasta = formatearFechaInput(fechaHastaDate);
+            
+            // Obtener feriados para calcular días hábiles
+            let feriados = window.cuponesDiasHabiles?.obtenerFeriados?.(fechaDesde, fechaHasta);
+            if (!feriados || feriados.length === 0) {
+                feriados = await window.cuponesDiasHabiles?.cargarFeriadosDesdeBD?.(fechaDesde, fechaHasta) || [];
+            }
+            
+            // Obtener valores TAMAR con caché
+            const result = await obtenerTAMARConCache(fechaDesde, fechaHasta);
+            
+            if (!result.success || !result.datos || result.datos.length === 0) {
+                return null;
+            }
+            
+            // Calcular fechas objetivo usando días hábiles
+            // Primera fecha: fecha inicio + intervaloInicio (días hábiles)
+            // Segunda fecha: fecha inicio + intervaloInicio - 1 (días hábiles)
+            // Tercera fecha: fecha inicio + intervaloInicio - 2 (días hábiles)
+            // etc.
+            const fechasObjetivo = [];
+            for (let i = 0; i < cantidadTasas; i++) {
+                const diasOffset = intervaloInicio - i;
+                const fechaObjetivo = window.cuponesDiasHabiles?.sumarDiasHabiles?.(fechaInicioDate, diasOffset, feriados);
+                if (fechaObjetivo) {
+                    fechasObjetivo.push(formatearFechaInput(fechaObjetivo));
+                }
+            }
+            
+            // Buscar valores para cada fecha objetivo
+            for (const fechaObjetivo of fechasObjetivo) {
+                const valor = result.datos.find(item => {
+                    const itemFecha = typeof item.fecha === 'string' && item.fecha.includes('T') 
+                        ? item.fecha.split('T')[0] 
+                        : item.fecha;
+                    return itemFecha === fechaObjetivo;
+                });
+                
+                if (valor) {
+                    const valorNum = parseFloat(valor.valor || 0);
+                    if (!isNaN(valorNum) && valorNum > 0) {
+                        valores.push(valorNum);
+                    }
+                }
+            }
+            
+            if (valores.length !== cantidadTasas) {
+                // No se encontraron todas las tasas necesarias
+                return null;
+            }
+        } else {
+            // Promedio Aritmético: calcular promedio entre inicio y final intervalo
+            if (!cupon.finalIntervalo) {
+                return null;
+            }
+            
+            // Convertir fechas de DD/MM/AAAA a YYYY-MM-DD
+            let fechaDesde = cupon.inicioIntervalo;
+            let fechaHasta = cupon.finalIntervalo;
+            
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaDesde)) {
+                fechaDesde = convertirFechaDDMMAAAAaYYYYMMDD(fechaDesde);
+            }
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaHasta)) {
+                fechaHasta = convertirFechaDDMMAAAAaYYYYMMDD(fechaHasta);
+            }
 
-        // Obtener valores TAMAR con caché
-        const result = await obtenerTAMARConCache(fechaDesde, fechaHasta);
+            // Obtener valores TAMAR con caché
+            const result = await obtenerTAMARConCache(fechaDesde, fechaHasta);
 
-        if (!result.success || !result.datos || result.datos.length === 0) {
-            return null;
+            if (!result.success || !result.datos || result.datos.length === 0) {
+                return null;
+            }
+
+            // Calcular promedio aritmético
+            valores = result.datos.map(item => parseFloat(item.valor || 0)).filter(v => !isNaN(v) && v > 0);
         }
-
-        // Calcular promedio aritmético
-        const valores = result.datos.map(item => parseFloat(item.valor || 0)).filter(v => !isNaN(v) && v > 0);
         
         if (valores.length === 0) {
             return null;
@@ -516,31 +610,125 @@ function limpiarCacheBADLAR() {
  * Calcular promedio de BADLAR para un cupón entre inicio y final intervalo
  */
 async function calcularPromedioBADLARParaCupon(cupon) {
-    if (!cupon.inicioIntervalo || !cupon.finalIntervalo) {
+    if (!cupon.inicioIntervalo) {
         return null;
     }
 
     try {
-        // Convertir fechas de DD/MM/AAAA a YYYY-MM-DD
-        let fechaDesde = cupon.inicioIntervalo;
-        let fechaHasta = cupon.finalIntervalo;
+        // Obtener fórmula seleccionada
+        const formulaSelect = document.getElementById('formula');
+        const formula = formulaSelect?.value || 'promedio-aritmetico';
         
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaDesde)) {
-            fechaDesde = convertirFechaDDMMAAAAaYYYYMMDD(fechaDesde);
-        }
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaHasta)) {
-            fechaHasta = convertirFechaDDMMAAAAaYYYYMMDD(fechaHasta);
-        }
+        let valores = [];
+        
+        if (formula === 'promedio-n-tasas') {
+            // Promedio N tasas: calcular promedio de N tasas partiendo desde fecha inicio -X (en días hábiles)
+            const cantidadTasasInput = document.getElementById('cantidadTasas');
+            const cantidadTasas = parseInt(cantidadTasasInput?.value || '0', 10);
+            
+            if (cantidadTasas <= 0) {
+                return null;
+            }
+            
+            // Obtener intervaloInicio del formulario
+            const intervaloInicioInput = document.getElementById('intervaloInicio');
+            const intervaloInicio = parseInt(intervaloInicioInput?.value || '0', 10);
+            
+            // Convertir fecha inicio a Date
+            let fechaInicioStr = cupon.fechaInicio || cupon.inicioIntervalo;
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaInicioStr)) {
+                fechaInicioStr = convertirFechaDDMMAAAAaYYYYMMDD(fechaInicioStr);
+            }
+            
+            const fechaInicioDate = crearFechaDesdeString(fechaInicioStr);
+            if (!fechaInicioDate) {
+                return null;
+            }
+            
+            // Calcular rango de fechas para cargar feriados (con margen)
+            const fechaDesdeDate = new Date(fechaInicioDate);
+            fechaDesdeDate.setDate(fechaDesdeDate.getDate() + intervaloInicio - cantidadTasas - 60); // Margen hacia atrás
+            const fechaHastaDate = new Date(fechaInicioDate);
+            fechaHastaDate.setDate(fechaHastaDate.getDate() + intervaloInicio + 60); // Margen hacia adelante
+            
+            const fechaDesde = formatearFechaInput(fechaDesdeDate);
+            const fechaHasta = formatearFechaInput(fechaHastaDate);
+            
+            // Obtener feriados para calcular días hábiles
+            let feriados = window.cuponesDiasHabiles?.obtenerFeriados?.(fechaDesde, fechaHasta);
+            if (!feriados || feriados.length === 0) {
+                feriados = await window.cuponesDiasHabiles?.cargarFeriadosDesdeBD?.(fechaDesde, fechaHasta) || [];
+            }
+            
+            // Obtener valores BADLAR con caché
+            const result = await obtenerBADLARConCache(fechaDesde, fechaHasta);
+            
+            if (!result.success || !result.datos || result.datos.length === 0) {
+                return null;
+            }
+            
+            // Calcular fechas objetivo usando días hábiles
+            // Primera fecha: fecha inicio + intervaloInicio (días hábiles)
+            // Segunda fecha: fecha inicio + intervaloInicio - 1 (días hábiles)
+            // Tercera fecha: fecha inicio + intervaloInicio - 2 (días hábiles)
+            // etc.
+            const fechasObjetivo = [];
+            for (let i = 0; i < cantidadTasas; i++) {
+                const diasOffset = intervaloInicio - i;
+                const fechaObjetivo = window.cuponesDiasHabiles?.sumarDiasHabiles?.(fechaInicioDate, diasOffset, feriados);
+                if (fechaObjetivo) {
+                    fechasObjetivo.push(formatearFechaInput(fechaObjetivo));
+                }
+            }
+            
+            // Buscar valores para cada fecha objetivo
+            for (const fechaObjetivo of fechasObjetivo) {
+                const valor = result.datos.find(item => {
+                    const itemFecha = typeof item.fecha === 'string' && item.fecha.includes('T') 
+                        ? item.fecha.split('T')[0] 
+                        : item.fecha;
+                    return itemFecha === fechaObjetivo;
+                });
+                
+                if (valor) {
+                    const valorNum = parseFloat(valor.valor || 0);
+                    if (!isNaN(valorNum) && valorNum > 0) {
+                        valores.push(valorNum);
+                    }
+                }
+            }
+            
+            if (valores.length !== cantidadTasas) {
+                // No se encontraron todas las tasas necesarias
+                return null;
+            }
+        } else {
+            // Promedio Aritmético: calcular promedio entre inicio y final intervalo
+            if (!cupon.finalIntervalo) {
+                return null;
+            }
+            
+            // Convertir fechas de DD/MM/AAAA a YYYY-MM-DD
+            let fechaDesde = cupon.inicioIntervalo;
+            let fechaHasta = cupon.finalIntervalo;
+            
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaDesde)) {
+                fechaDesde = convertirFechaDDMMAAAAaYYYYMMDD(fechaDesde);
+            }
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaHasta)) {
+                fechaHasta = convertirFechaDDMMAAAAaYYYYMMDD(fechaHasta);
+            }
 
-        // Obtener valores BADLAR con caché
-        const result = await obtenerBADLARConCache(fechaDesde, fechaHasta);
+            // Obtener valores BADLAR con caché
+            const result = await obtenerBADLARConCache(fechaDesde, fechaHasta);
 
-        if (!result.success || !result.datos || result.datos.length === 0) {
-            return null;
+            if (!result.success || !result.datos || result.datos.length === 0) {
+                return null;
+            }
+
+            // Calcular promedio aritmético
+            valores = result.datos.map(item => parseFloat(item.valor || 0)).filter(v => !isNaN(v) && v > 0);
         }
-
-        // Calcular promedio aritmético
-        const valores = result.datos.map(item => parseFloat(item.valor || 0)).filter(v => !isNaN(v) && v > 0);
         
         if (valores.length === 0) {
             return null;
