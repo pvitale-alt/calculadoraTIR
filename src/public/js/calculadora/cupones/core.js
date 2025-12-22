@@ -566,8 +566,8 @@ async function renderizarCupones() {
                 await window.cuponesRecalculos.recalcularInicioIntervalo(cupon);
             }
             
-            // Asegurar que finalIntervalo sea consistente con fechaLiquid
-            if (cupon.fechaLiquid && window.cuponesRecalculos.recalcularFinalIntervaloSinRecalculosAdicionales) {
+            // Asegurar que finalIntervalo sea consistente con fechaFinDev
+            if (cupon.fechaFinDev && window.cuponesRecalculos.recalcularFinalIntervaloSinRecalculosAdicionales) {
                 await window.cuponesRecalculos.recalcularFinalIntervaloSinRecalculosAdicionales(cupon);
             }
         }
@@ -670,8 +670,8 @@ async function actualizarCupon(cuponId, campo, valor) {
                 await window.cuponesRecalculos.recalcularInicioIntervalo(cupon);
             }
             
-            // Si cambia fechaFinDev o fechaLiquid, recalcular finalIntervalo (finalIntervalo se calcula desde fechaLiquid)
-            if ((campo === 'fechaFinDev' || campo === 'fechaLiquid') && window.cuponesRecalculos && window.cuponesRecalculos.recalcularFinalIntervaloSinRecalculosAdicionales) {
+            // Si cambia fechaFinDev, recalcular finalIntervalo
+            if (campo === 'fechaFinDev' && window.cuponesRecalculos && window.cuponesRecalculos.recalcularFinalIntervaloSinRecalculosAdicionales) {
                 await window.cuponesRecalculos.recalcularFinalIntervaloSinRecalculosAdicionales(cupon);
             }
             

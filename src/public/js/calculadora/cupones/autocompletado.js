@@ -409,8 +409,13 @@ async function crearFilasCupones() {
         // Calcular final intervalo (solo si no es "Promedio N tasas")
         let finalIntervalo = null;
         if (formula !== 'promedio-n-tasas') {
-            // IMPORTANTE: Para todas las calculadoras (con y sin ajuste CER), usar fechaLiquidacion como base
-            const fechaBaseFinalIntervalo = fechaLiquidacion;
+            // IMPORTANTE: Para calculadoras CON ajuste CER, SIEMPRE usar fechaLiquidacion como base
+            // Para calculadoras SIN ajuste CER, usar fechaFinDev como base
+            const ajusteCER = datos.ajusteCER || false;
+            
+            // Para calculadoras CON ajuste CER: fechaBaseFinalIntervalo = fechaLiquidacion
+            // Para calculadoras SIN ajuste CER: fechaBaseFinalIntervalo = fechaFinDev
+            const fechaBaseFinalIntervalo = ajusteCER ? fechaLiquidacion : fechaFinDev;
             
             // Usar feriados ya cargados en memoria
             finalIntervalo = window.cuponesDiasHabiles.sumarDiasHabiles(

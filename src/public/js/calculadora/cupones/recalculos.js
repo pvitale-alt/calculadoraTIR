@@ -33,9 +33,12 @@ async function recalcularDependencias(cupon, campoModificado) {
         case 'fechaFinDev':
             // fechaFinDev → dayCountFactor
             recalcularDayCountFactor(cupon);
-            // fechaFinDev puede afectar fechaLiquid, por lo que recalcular finalIntervalo
-            // (finalIntervalo se calcula desde fechaLiquid para todas las calculadoras)
-            if (cupon.fechaLiquid) {
+            // Si no hay ajuste CER, fechaFinDev → finalIntervalo
+            // PERO solo recalcular finalIntervalo, sin disparar otros recálculos que puedan afectar fechaInicio o fechaFinDev
+            const ajusteCERFinDev = document.getElementById('ajusteCER')?.checked || false;
+            if (!ajusteCERFinDev && cupon.fechaFinDev) {
+                // Recalcular solo finalIntervalo sin disparar recálculos adicionales
+                // Esto asegura que finalIntervalo sea consistente con fechaFinDev
                 await recalcularFinalIntervaloSinRecalculosAdicionales(cupon);
             }
             break;
@@ -43,11 +46,7 @@ async function recalcularDependencias(cupon, campoModificado) {
         case 'fechaLiquid':
             // fechaLiquid → fechaFinDev (fechaLiquid + diasRestarFechaFinDev)
             await recalcularFechaFinDev(cupon);
-            // fechaLiquid → finalIntervalo (para todas las calculadoras, con y sin ajuste CER)
-            if (cupon.fechaLiquid) {
-                await recalcularFinalIntervaloSinRecalculosAdicionales(cupon);
-            }
-            // Si hay ajuste CER, también recalcular valorCERFinal
+            // fechaLiquid → finalIntervalo → valorCERFinal (solo si hay ajuste CER)
             const ajusteCERLiquid = document.getElementById('ajusteCER')?.checked || false;
             if (ajusteCERLiquid) {
                 await recalcularFinalIntervalo(cupon);
@@ -106,7 +105,7 @@ async function recalcularFechaFinDev(cupon) {
         // Recalcular dayCountFactor ya que depende de fechaFinDev
         recalcularDayCountFactor(cupon);
         
-        // Recalcular finalIntervalo (que depende de fechaLiquid para todas las calculadoras)
+        // Si no hay ajuste CER, recalcular finalIntervalo (que depende de fechaFinDev)
         if (cupon.fechaLiquid) {
             await recalcularFinalIntervaloSinRecalculosAdicionales(cupon);
         }
@@ -179,13 +178,16 @@ async function recalcularInicioIntervalo(cupon) {
 }
 
 /**
- * Recalcula finalIntervalo basado en fechaLiquid (tanto con ajuste CER como sin ajuste CER)
+ * Recalcula finalIntervalo basado en fechaLiquid (con ajuste CER) o fechaFinDev (sin ajuste CER)
  * Versión que solo recalcula finalIntervalo sin disparar recálculos adicionales
- * Para todas las calculadoras, finalIntervalo se calcula desde fechaLiquid
+ * Para calculadoras sin ajuste CER, finalIntervalo debe ser consistente con fechaFinDev
  */
 async function recalcularFinalIntervaloSinRecalculosAdicionales(cupon) {
-    // Usar fechaLiquid para todas las calculadoras (con y sin ajuste CER)
-    const fechaBaseStr = cupon.fechaLiquid;
+    // Verificar si hay ajuste CER
+    const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
+    
+    // Sin ajuste CER: usar fechaFinDev
+    const fechaBaseStr = ajusteCER ? cupon.fechaLiquid : cupon.fechaFinDev;
     
     if (!fechaBaseStr) return;
     
@@ -223,11 +225,10 @@ async function recalcularFinalIntervaloSinRecalculosAdicionales(cupon) {
             feriados = await window.cuponesDiasHabiles.cargarFeriadosDesdeBD(fechaDesde, fechaHasta);
         }
         
-        // Calcular finalIntervalo basado en fechaLiquid (para todas las calculadoras)
+        // Calcular finalIntervalo basado en fechaBase (fechaFinDev para no-CER, fechaLiquid para CER)
         let finalIntervalo = window.cuponesDiasHabiles.sumarDiasHabiles(fechaBaseDate, intervaloFin, feriados);
         
         // Validación con fecha valuación (solo para calculadoras con ajuste CER)
-        const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
         if (ajusteCER && fechaValuacionStr) {
             const fechaValuacionDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(fechaValuacionStr));
             if (fechaValuacionDate && finalIntervalo > fechaValuacionDate) {
@@ -254,16 +255,33 @@ async function recalcularFinalIntervaloSinRecalculosAdicionales(cupon) {
 }
 
 /**
- * Recalcula finalIntervalo basado en fechaLiquid (para todas las calculadoras, con y sin ajuste CER)
+ * Recalcula finalIntervalo basado en fechaLiquid (con ajuste CER) o fechaFinDev (sin ajuste CER)
  */
 async function recalcularFinalIntervalo(cupon) {
-    // Usar fechaLiquid para todas las calculadoras (con y sin ajuste CER)
-    const fechaBaseStr = cupon.fechaLiquid;
+    // Verificar si hay ajuste CER
+    const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
     
-    if (!fechaBaseStr) {
-        // Cupón sin fechaLiquid, omitir
-        return;
+    // Determinar la fecha base según ajuste CER
+    // IMPORTANTE: Para calculadoras CON ajuste CER, SIEMPRE usar fechaLiquid (fecha liquidación del cupón)
+    // Para calculadoras SIN ajuste CER, usar fechaFinDev
+    let fechaBaseStr = null;
+    if (ajusteCER) {
+        // Con ajuste CER: SIEMPRE usar fechaLiquid (fecha liquidación del cupón)
+        fechaBaseStr = cupon.fechaLiquid;
+        if (!fechaBaseStr) {
+            // Cupón sin fechaLiquid, omitir
+            return;
+        }
+    } else {
+        // Sin ajuste CER: usar fechaFinDev
+        fechaBaseStr = cupon.fechaFinDev;
+        if (!fechaBaseStr) {
+            // Cupón sin fechaFinDev, omitir
+            return;
+        }
     }
+    
+    if (!fechaBaseStr) return;
     
     try {
         // Obtener intervaloFin del formulario
@@ -299,11 +317,12 @@ async function recalcularFinalIntervalo(cupon) {
             feriados = await window.cuponesDiasHabiles.cargarFeriadosDesdeBD(fechaDesde, fechaHasta);
         }
         
-        // Calcular finalIntervalo basado en fechaLiquid (para todas las calculadoras)
+        // Calcular finalIntervalo basado en fechaBase
+        // Para calculadoras CON ajuste CER: fechaBase = fechaLiquid
+        // Para calculadoras SIN ajuste CER: fechaBase = fechaFinDev
         let finalIntervalo = window.cuponesDiasHabiles.sumarDiasHabiles(fechaBaseDate, intervaloFin, feriados);
         
         // Validación con fecha valuación (solo para calculadoras con ajuste CER)
-        const ajusteCER = document.getElementById('ajusteCER')?.checked || false;
         if (ajusteCER && fechaValuacionStr) {
             const fechaValuacionDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(fechaValuacionStr));
             if (fechaValuacionDate && finalIntervalo > fechaValuacionDate) {
