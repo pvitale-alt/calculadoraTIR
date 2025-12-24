@@ -525,6 +525,7 @@ async function crearFilasCupones() {
         // Crear objeto cupón
         const cupon = {
             id: `cupon-${i + 1}`,
+            cupon: numeroCupon.toString(),
             numeroCupon: numeroCupon.toString(),
             fechaInicio: fechaInicioStr,
             fechaFinDev: fechaFinDevStr,
@@ -666,6 +667,14 @@ async function autocompletarCupones() {
         const container = document.getElementById('tablaCuponesContainer');
         if (container) {
             container.style.display = 'block';
+            
+            // Actualizar el título del h2 a "Cashflow - {ticker}"
+            const h2Titulo = container.querySelector('h2');
+            const tickerInput = document.getElementById('ticker');
+            if (h2Titulo && tickerInput) {
+                const ticker = tickerInput.value.trim();
+                h2Titulo.textContent = ticker ? `Cashflow - ${ticker}` : 'Cashflow';
+            }
         }
         
         // Renderizar los cupones

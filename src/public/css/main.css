@@ -650,6 +650,22 @@ select.input-sm {
     color: inherit;
 }
 
+.cupones-table tr.cupon-vigente {
+    background-color: rgba(196, 226, 244, 0.15) !important;
+}
+
+.cupones-table tr.cupon-vigente td {
+    background-color: rgba(196, 226, 244, 0.15) !important;
+}
+
+.cupones-table tr.cupon-vigente:hover {
+    background-color: rgba(196, 226, 244, 0.15) !important;
+}
+
+.cupones-table tr.cupon-vigente:hover td {
+    background-color: rgba(196, 226, 244, 0.15) !important;
+}
+
 .cupones-table .input-table {
     width: 100%;
     min-width: 60px;

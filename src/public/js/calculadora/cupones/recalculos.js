@@ -240,10 +240,35 @@ async function recalcularFinalIntervaloSinRecalculosAdicionales(cupon) {
         const finalIntervaloStr = convertirFechaYYYYMMDDaDDMMAAAA(formatearFechaInput(finalIntervalo), '/');
         cupon.finalIntervalo = finalIntervaloStr;
         
+        // Verificar si es el cupón vigente para mostrar la fecha de valuación visualmente
+        let esCuponVigente = false;
+        
+        if (!ajusteCER && fechaValuacionStr) {
+            try {
+                const fechaValuacionDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(fechaValuacionStr));
+                if (fechaValuacionDate && cupon.fechaInicio && cupon.fechaFinDev) {
+                    const fechaInicioDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(cupon.fechaInicio));
+                    const fechaFinDevDate = crearFechaDesdeString(convertirFechaDDMMAAAAaYYYYMMDD(cupon.fechaFinDev));
+                    if (fechaInicioDate && fechaFinDevDate &&
+                        fechaValuacionDate >= fechaInicioDate && 
+                        fechaValuacionDate <= fechaFinDevDate) {
+                        esCuponVigente = true;
+                    }
+                }
+            } catch (e) {
+                // Ignorar errores de parsing
+            }
+        }
+        
         // Actualizar input en el DOM
         const inputFinalIntervalo = document.getElementById(`finalIntervalo_${cupon.id}`);
         if (inputFinalIntervalo) {
-            inputFinalIntervalo.value = finalIntervaloStr;
+            // Para el cupón vigente, mostrar la fecha de valuación visualmente
+            if (esCuponVigente) {
+                inputFinalIntervalo.value = fechaValuacionStr;
+            } else {
+                inputFinalIntervalo.value = finalIntervaloStr;
+            }
         }
         
         // NOTA: El cálculo de promedio TAMAR para sin ajuste CER se hace en renderizarCupones
@@ -624,10 +649,26 @@ async function recalcularIntervalosCuponVigentePorFechaValuacion() {
             const finalIntervaloStr = convertirFechaYYYYMMDDaDDMMAAAA(formatearFechaInput(nuevoFinalIntervalo), '/');
             cuponVigente.finalIntervalo = finalIntervaloStr;
             
-            // Actualizar input en el DOM
-            const inputFinalIntervalo = document.getElementById(`finalIntervalo_${cuponVigente.id}`);
-            if (inputFinalIntervalo) {
-                inputFinalIntervalo.value = finalIntervaloStr;
+            // Actualizar input en el DOM - mostrar la fecha de valuación visualmente
+            // Usar setTimeout para asegurar que el DOM esté completamente actualizado
+            setTimeout(() => {
+                const inputFinalIntervalo = document.getElementById(`finalIntervalo_${cuponVigente.id}`);
+                if (inputFinalIntervalo) {
+                    // Visualmente mostrar la fecha de valuación (aunque por detrás se use finalIntervalo calculado)
+                    inputFinalIntervalo.value = fechaValuacionStr;
+                }
+            }, 0);
+            
+            // Aplicar estilo de fondo celeste transparente a la fila del cupón vigente
+            const row = document.querySelector(`tr[data-cupon-id="${cuponVigente.id}"]`);
+            if (row) {
+                row.style.backgroundColor = 'rgba(173, 212, 235, 0.15)';
+                row.classList.add('cupon-vigente');
+                // Aplicar estilo a todas las celdas
+                const celdas = row.querySelectorAll('td');
+                celdas.forEach(td => {
+                    td.style.backgroundColor = 'rgba(173, 212, 235, 0.15)';
+                });
             }
         }
         

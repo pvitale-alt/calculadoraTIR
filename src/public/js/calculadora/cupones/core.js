@@ -359,6 +359,15 @@ async function renderizarCupones() {
             row.classList.remove('cupon-futuro');
         }
         
+        // Verificar si es el cupón vigente
+        const esCuponVigente = !ajusteCER && cupon.id === cuponVigenteId;
+        
+        // Aplicar fondo celeste transparente al cupón vigente
+        if (esCuponVigente) {
+            row.style.backgroundColor = 'rgba(173, 212, 235, 0.15)';
+            row.classList.add('cupon-vigente');
+        }
+        
         const bloqueoIntervaloAttrs = esFuturo ? 'readonly tabindex="-1"' : '';
         const bloqueoIntervaloClase = esFuturo ? ' input-bloqueado' : '';
         const bloqueoCERAttrs = esFuturo ? 'readonly tabindex="-1"' : '';
@@ -366,11 +375,14 @@ async function renderizarCupones() {
         const onclickInicioIntervalo = esFuturo ? '' : `event.stopPropagation(); abrirDatePicker('inicioIntervalo_${cupon.id}');`;
         const onclickFinalIntervalo = esFuturo ? '' : `event.stopPropagation(); abrirDatePicker('finalIntervalo_${cupon.id}');`;
         
+        // Para el cupón vigente, mostrar la fecha de valuación en finalIntervalo
+        const valorFinalIntervalo = esCuponVigente && fechaValuacionStr ? fechaValuacionStr : (cupon.finalIntervalo || '');
+        
         row.innerHTML = `
             <td>
-                <input type="text" class="input-table" value="${cupon.cupon || ''}" 
+                <input type="text" class="input-table" value="${cupon.cupon || cupon.numeroCupon || ''}" 
                        onchange="actualizarCupon('${cupon.id}', 'cupon', this.value)" 
-                       style="width: 50px; text-align: center;" />
+                       style="width: 35px; text-align: center;" />
             </td>
             <td>
                 <div style="position: relative;">
@@ -419,14 +431,14 @@ async function renderizarCupones() {
             </td>
             <td>
                 <div style="position: relative;">
-                    <input type="text" class="input-table date-input${bloqueoIntervaloClase}" 
+                    <input type="text" class="input-table date-input${bloqueoIntervaloClase}${esCuponVigente ? ' input-bloqueado' : ''}" 
                            id="finalIntervalo_${cupon.id}"
-                           value="${cupon.finalIntervalo || ''}" 
+                           value="${valorFinalIntervalo}" 
                            placeholder="DD/MM/AAAA" 
                            maxlength="10"
-                           onchange="actualizarCupon('${cupon.id}', 'finalIntervalo', this.value)"
-                           ${bloqueoIntervaloAttrs}
-                           onclick="${onclickFinalIntervalo}" />
+                           onchange="${esCuponVigente ? '' : `actualizarCupon('${cupon.id}', 'finalIntervalo', this.value)`}"
+                           ${esCuponVigente ? 'readonly tabindex="-1"' : bloqueoIntervaloAttrs}
+                           onclick="${esCuponVigente ? '' : onclickFinalIntervalo}" />
                 </div>
             </td>
             ${ajusteCER ? `
@@ -553,6 +565,23 @@ async function renderizarCupones() {
         `;
         
         tbody.appendChild(row);
+        
+        // Después de agregar la fila, actualizar el valor del campo finalIntervalo si es cupón vigente
+        if (esCuponVigente && fechaValuacionStr) {
+            // Usar setTimeout para asegurar que el DOM esté completamente actualizado
+            setTimeout(() => {
+                const inputFinalIntervalo = document.getElementById(`finalIntervalo_${cupon.id}`);
+                if (inputFinalIntervalo) {
+                    inputFinalIntervalo.value = fechaValuacionStr;
+                }
+            }, 0);
+            
+            // Asegurar que el estilo se aplique a todas las celdas
+            const celdas = row.querySelectorAll('td');
+            celdas.forEach(td => {
+                td.style.backgroundColor = 'rgba(173, 212, 235, 0.15)';
+            });
+        }
     });
     
     // Para calculadoras sin ajuste CER: asegurar que los intervalos sean consistentes con fechas
@@ -650,6 +679,17 @@ async function renderizarCupones() {
     
     if (window.cuponesCalculos && typeof window.cuponesCalculos.recalcularFlujos === 'function') {
         window.cuponesCalculos.recalcularFlujos(cuponesData);
+    }
+    
+    // Actualizar el campo finalIntervalo del cupón vigente para mostrar la fecha de valuación
+    // Usar setTimeout para asegurar que el DOM esté completamente actualizado
+    if (!ajusteCER && cuponVigenteId && fechaValuacionStr) {
+        setTimeout(() => {
+            const inputFinalIntervalo = document.getElementById(`finalIntervalo_${cuponVigenteId}`);
+            if (inputFinalIntervalo) {
+                inputFinalIntervalo.value = fechaValuacionStr;
+            }
+        }, 0);
     }
 }
 
